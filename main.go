@@ -75,25 +75,28 @@ func NewModel() *Model {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Project name").
-				Description("Enter a name for your Django project").
+				Description("How would you like to name your project?").
+				Placeholder("my_django_project").
 				Value(&m.projectName).
 				Validate(func(s string) error {
 					if s == "" {
 						return fmt.Errorf("Project name cannot be empty")
 					}
+					// Add validation for valid Python package name
 					return nil
 				}),
 		),
-	).WithTheme(theme)
+	).WithTheme(theme).WithShowHelp(true).WithShowErrors(true)
 
 	m.versionForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Django version").
-				Description("Press Enter to use default version (5.2.0)").
+				Description("Which Django version would you like to use?").
+				Placeholder("5.2.0").
 				Value(&m.djangoVersion),
 		),
-	).WithTheme(theme)
+	).WithTheme(theme).WithShowHelp(true)
 
 	m.featureForm = huh.NewForm(
 		huh.NewGroup(
@@ -141,6 +144,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	// Add more keyboard shortcuts
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "ctrl+b":
+			// Go back to previous step if possible
+			if m.step > stepProjectName {
+				m.step--
+				// Handle going back logic...
+				return m, nil
+			}
+		}
+	}
+
 	switch msg := msg.(type) {
 	case progressMsg:
 		if float64(msg) >= 1.0 {
@@ -150,11 +169,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.progress.SetPercent(float64(msg))
 		return m, m.updateProgress()
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC || msg.String() == "q" {
-			// Quit if 'q' or Ctrl+C is pressed
-			return m, tea.Quit
-		}
 	}
 
 	switch m.step {
@@ -199,7 +213,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if f.State == huh.StateCompleted {
 				m.step = stepServerOption
 				if m.appName != "" {
-					 // Get absolute path to project
+					// Get absolute path to project
 					wd, err := os.Getwd()
 					if err != nil {
 						m.error = fmt.Errorf("failed to get working directory: %v", err)
@@ -208,32 +222,39 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					projectPath := filepath.Join(wd, m.projectName)
 					pythonPath := getPythonPath(projectPath)
 
-					 // Verify Python path exists
+					// Verify Python path exists
 					if _, err := os.Stat(pythonPath); os.IsNotExist(err) {
 						m.error = fmt.Errorf("Python executable not found at %s: %v", pythonPath, err)
 						return m, nil
-					 }
+					}
 
-					 // Create app with better error handling
+					// Check if manage.py exists
+					managePyPath := filepath.Join(projectPath, "manage.py")
+					if _, err := os.Stat(managePyPath); os.IsNotExist(err) {
+						m.error = fmt.Errorf("manage.py not found in project directory. Project setup may be incomplete.")
+						return m, nil
+					}
+
+					// Create app with better error handling
 					createAppCmd := exec.Command(pythonPath, "manage.py", "startapp", m.appName)
 					createAppCmd.Dir = projectPath
 
-					 // Capture command output for better error reporting
+					// Capture command output for better error reporting
 					output, err := createAppCmd.CombinedOutput()
 					if err != nil {
 						m.error = fmt.Errorf("failed to create app: %v\nOutput: %s", err, output)
 						return m, nil
-					}
+					 }
 
-					 // Register app in settings.py
+					// Register app in settings.py
 					settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
 					settingsContent, err := os.ReadFile(settingsPath)
 					if err != nil {
 						m.error = fmt.Errorf("failed to read settings.py: %v", err)
 						return m, nil
-					 }
+					}
 
-					 // Find INSTALLED_APPS section and add the new app
+					// Find INSTALLED_APPS section and add the new app
 					settingsStr := string(settingsContent)
 					installedAppsIndex := strings.Index(settingsStr, "INSTALLED_APPS = [")
 					if installedAppsIndex == -1 {
@@ -241,14 +262,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 
-					 // Find the closing bracket of INSTALLED_APPS
+					// Find the closing bracket of INSTALLED_APPS
 					closeBracketIndex := strings.Index(settingsStr[installedAppsIndex:], "]")
 					if closeBracketIndex == -1 {
 						m.error = fmt.Errorf("malformed INSTALLED_APPS in settings.py")
 						return m, nil
 					}
 
-					 // Insert the new app
+					// Insert the new app
 					newSettingsContent := settingsStr[:installedAppsIndex+closeBracketIndex] +
 						"    '" + m.appName + "',\n" +
 						settingsStr[installedAppsIndex+closeBracketIndex:]
@@ -309,15 +330,82 @@ func (m *Model) View() string {
 	msgStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).PaddingLeft(4)
 	var view string
 
+	// Add a welcome banner for the initial screen
+	if m.step == stepProjectName {
+		bannerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
+		view += bannerStyle.Render(`
+██████╗░░█████╗░██████╗░██╗██████╗░    ██████╗░░░░░░██╗
+██╔══██╗██╔══██╗██╔══██╗██║██╔══██╗    ██╔══██╗░░░░░██║
+██████╔╝███████║██████╔╝██║██║░░██║    ██║░░██║░░░░░██║
+██╔══██╗██╔══██║██╔═══╝░██║██║░░██║    ██║░░██║██╗░░██║
+██║░░██║██║░░██║██║░░░░░██║██████╔╝    ██████╔╝╚█████╔╝
+╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░░░░╚═╝╚═════╝░    ╚═════╝░░╚════╝░
+        `) + "\n\n"
+		view += style.Render("✨ Welcome to Django Project Creator!") + "\n"
+		view += msgStyle.Render("Let's build your Django project together.") + "\n\n"
+	}
+
 	// Display step messages with styling
 	for _, msg := range m.stepMessages {
 		view += msgStyle.Render(msg) + "\n"
 	}
 
+	// Progress indicator
+	progressBar := ""
+	totalSteps := 5 // Total number of possible steps
+	for i := 0; i < totalSteps; i++ {
+		if int(m.step) > i {
+			// Completed step
+			progressBar += lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Render("● ")
+		} else if int(m.step) == i {
+			// Current step
+			progressBar += lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render("○ ")
+		} else {
+			// Future step
+			progressBar += lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("○ ")
+		}
+	}
+
+	// Add this progress indicator before showing the current step's content
+	if !m.done && m.error == nil {
+		view += lipgloss.NewStyle().PaddingTop(1).PaddingBottom(1).Render(progressBar) + "\n"
+	}
+
 	// Handle completion state
 	if m.done {
 		successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true).PaddingLeft(2)
-		view += successStyle.Render("✅ Django project setup complete!")
+		summaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).PaddingLeft(4)
+		houstonStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+		// Add Houston face and rocket art
+		houston := houstonStyle.Render(`
+   ___
+  /|_|\
+ /_/_\_\
+ \_\_/_/
+  \|_|/
+
+  ^---^
+ /o   o\
+ \  ω  /   Houston: Good luck out there, Djangonaut!
+  \___/    Your project is ready for takeoff! 🚀
+`)
+
+		view += successStyle.Render("✅ Django project setup complete!") + "\n\n"
+		view += houston + "\n\n"
+		view += successStyle.Render("Project Summary:") + "\n"
+		view += summaryStyle.Render(fmt.Sprintf("📁 Project: %s", m.projectName)) + "\n"
+		view += summaryStyle.Render(fmt.Sprintf("📦 Django: %s", m.djangoVersion)) + "\n"
+
+		if m.appName != "" {
+			view += summaryStyle.Render(fmt.Sprintf("🧩 App: %s", m.appName)) + "\n"
+		}
+
+		// Add next steps guidance with rocket emojis
+		view += "\n" + successStyle.Render("Next steps:") + "\n"
+		view += summaryStyle.Render(fmt.Sprintf("1. 🚀 cd %s", m.projectName)) + "\n"
+		view += summaryStyle.Render("2. 🚀 python manage.py runserver") + "\n"
+
 		return view
 	}
 
@@ -343,7 +431,8 @@ func (m *Model) View() string {
 	case stepCreateApp:
 		view += style.Render("✨ Django Project Creator - Optional Step\n\n") + m.appForm.View()
 	case stepServerOption:
-		view += style.Render("✨ Run Development Server?") + "\n" + m.serverForm.View()
+		view += style.Render("✨ Almost done! Would you like to run the development server?") + "\n\n"
+		view += m.serverForm.View()
 	default:
 		view += style.Render("✨ Unknown state")
 	}
@@ -389,35 +478,36 @@ func (m *Model) createProject() {
 	}
 
 	// Create project directory
+	m.progressStatus = "Creating project directory..."
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		m.error = fmt.Errorf("failed to create project directory: %v", err)
 		return
 	}
-	m.stepMessages = append(m.stepMessages, "Project directory created.")
+	m.stepMessages = append(m.stepMessages, "📁 Project directory created")
 
 	// Create virtual environment
-	m.progressStatus = "Creating virtual environment..."
+	m.progressStatus = "Setting up Python virtual environment..."
 	cmd := exec.Command("uv", "venv", ".venv")
 	cmd.Dir = projectPath
 	if err := cmd.Run(); err != nil {
 		m.error = fmt.Errorf("failed to create virtual environment: %v", err)
 		return
 	}
-	m.stepMessages = append(m.stepMessages, "Virtual environment created.")
+	m.stepMessages = append(m.stepMessages, "🐍 Virtual environment ready")
 
 	// Install Django
 	version := m.djangoVersion
 	if version == "" {
 		version = "5.2.0"
 	}
-	m.progressStatus = fmt.Sprintf("Installing Django %s...", version)
+	m.progressStatus = fmt.Sprintf("📦 Installing Django %s...", version)
 	cmd = exec.Command("uv", "pip", "install", "django=="+version)
 	cmd.Dir = projectPath
 	if err := cmd.Run(); err != nil {
 		m.error = fmt.Errorf("failed to install Django: %v", err)
 		return
 	}
-	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Django %s installed.", version))
+	m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Django %s installed", version))
 
 	// Create Django project
 	m.progressStatus = "Creating Django project..."
@@ -429,6 +519,7 @@ func (m *Model) createProject() {
 		return
 	}
 
+	// Use django-admin startproject with the correct structure
 	cmd = exec.Command(pythonPath, "-m", "django", "startproject", m.projectName, ".")
 	cmd.Dir = projectPath
 	if err := cmd.Run(); err != nil {
@@ -436,6 +527,13 @@ func (m *Model) createProject() {
 		return
 	}
 	m.stepMessages = append(m.stepMessages, "Django project created.")
+
+	// Verify manage.py exists
+	managePyPath := filepath.Join(projectPath, "manage.py")
+	if _, err := os.Stat(managePyPath); os.IsNotExist(err) {
+		m.error = fmt.Errorf("Django project structure invalid: manage.py not found")
+		return
+	}
 
 	// Using vanilla setup by default
 	m.stepMessages = append(m.stepMessages, "Using vanilla Django setup")
