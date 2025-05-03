@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -198,30 +199,41 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if f.State == huh.StateCompleted {
 				m.step = stepServerOption
 				if m.appName != "" {
-					// Create the app
+					 // Get absolute path to project
 					wd, err := os.Getwd()
 					if err != nil {
 						m.error = fmt.Errorf("failed to get working directory: %v", err)
 						return m, nil
 					}
 					projectPath := filepath.Join(wd, m.projectName)
-					pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-					cmd := exec.Command(pythonPath, "manage.py", "startapp", m.appName)
-					cmd.Dir = projectPath
-					if err := cmd.Run(); err != nil {
-						m.error = fmt.Errorf("failed to create app: %v", err)
+					pythonPath := getPythonPath(projectPath)
+
+					 // Verify Python path exists
+					if _, err := os.Stat(pythonPath); os.IsNotExist(err) {
+						m.error = fmt.Errorf("Python executable not found at %s: %v", pythonPath, err)
+						return m, nil
+					 }
+
+					 // Create app with better error handling
+					createAppCmd := exec.Command(pythonPath, "manage.py", "startapp", m.appName)
+					createAppCmd.Dir = projectPath
+
+					 // Capture command output for better error reporting
+					output, err := createAppCmd.CombinedOutput()
+					if err != nil {
+						m.error = fmt.Errorf("failed to create app: %v\nOutput: %s", err, output)
 						return m, nil
 					}
 
-					// Register app in settings.py
+					 // Register app in settings.py
 					settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
 					settingsContent, err := os.ReadFile(settingsPath)
 					if err != nil {
 						m.error = fmt.Errorf("failed to read settings.py: %v", err)
 						return m, nil
-					}
+					 }
 
-					// Find INSTALLED_APPS section and add the new app
+					 // Find INSTALLED_APPS section and add the new app
 					settingsStr := string(settingsContent)
 					installedAppsIndex := strings.Index(settingsStr, "INSTALLED_APPS = [")
 					if installedAppsIndex == -1 {
@@ -229,14 +241,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 
-					// Find the closing bracket of INSTALLED_APPS
+					 // Find the closing bracket of INSTALLED_APPS
 					closeBracketIndex := strings.Index(settingsStr[installedAppsIndex:], "]")
 					if closeBracketIndex == -1 {
 						m.error = fmt.Errorf("malformed INSTALLED_APPS in settings.py")
 						return m, nil
 					}
 
-					// Insert the new app
+					 // Insert the new app
 					newSettingsContent := settingsStr[:installedAppsIndex+closeBracketIndex] +
 						"    '" + m.appName + "',\n" +
 						settingsStr[installedAppsIndex+closeBracketIndex:]
@@ -264,7 +276,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					projectPath := filepath.Join(wd, m.projectName)
-					pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
+					pythonPath := getPythonPath(projectPath)
+
+					// Check if Python executable exists
+					if _, err := os.Stat(pythonPath); os.IsNotExist(err) {
+						m.error = fmt.Errorf("Python executable not found at %s: %v", pythonPath, err)
+						return m, nil
+					}
+
 					cmd := exec.Command(pythonPath, "manage.py", "runserver")
 					cmd.Dir = projectPath
 					cmd.Stdout = os.Stdout
@@ -336,7 +355,6 @@ func (m *Model) View() string {
 	return view
 }
 
-
 type progressMsg float64
 
 func (m *Model) updateProgress() tea.Cmd {
@@ -352,8 +370,6 @@ func (m *Model) updateProgress() tea.Cmd {
 		}
 	}
 }
-
-
 
 func (m *Model) createProject() {
 	if m.projectName == "" {
@@ -405,7 +421,14 @@ func (m *Model) createProject() {
 
 	// Create Django project
 	m.progressStatus = "Creating Django project..."
-	pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
+	pythonPath := getPythonPath(projectPath)
+
+	// Check if Python executable exists
+	if _, err := os.Stat(pythonPath); os.IsNotExist(err) {
+		m.error = fmt.Errorf("Python executable not found at %s: %v", pythonPath, err)
+		return
+	}
+
 	cmd = exec.Command(pythonPath, "-m", "django", "startproject", m.projectName, ".")
 	cmd.Dir = projectPath
 	if err := cmd.Run(); err != nil {
@@ -417,64 +440,17 @@ func (m *Model) createProject() {
 	// Using vanilla setup by default
 	m.stepMessages = append(m.stepMessages, "Using vanilla Django setup")
 
-	// Create the app if specified
-	if m.appName != "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			m.error = fmt.Errorf("failed to get working directory: %v", err)
-			return
-		}
-		projectPath := filepath.Join(wd, m.projectName)
-		pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-		cmd := exec.Command(pythonPath, "manage.py", "startapp", m.appName)
-		cmd.Dir = projectPath
-		if err := cmd.Run(); err != nil {
-			m.error = fmt.Errorf("failed to create app: %v", err)
-			return
-		}
-
-		// Register app in settings.py
-		settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
-		settingsContent, err := os.ReadFile(settingsPath)
-		if err != nil {
-			m.error = fmt.Errorf("failed to read settings.py: %v", err)
-			return
-		}
-
-		// Find INSTALLED_APPS section and add the new app
-		settingsStr := string(settingsContent)
-		installedAppsIndex := strings.Index(settingsStr, "INSTALLED_APPS = [")
-		if installedAppsIndex == -1 {
-			m.error = fmt.Errorf("could not find INSTALLED_APPS in settings.py")
-			return
-		}
-
-		// Find the closing bracket of INSTALLED_APPS
-		closeBracketIndex := strings.Index(settingsStr[installedAppsIndex:], "]")
-		if closeBracketIndex == -1 {
-			m.error = fmt.Errorf("malformed INSTALLED_APPS in settings.py")
-			return
-		}
-
-		// Insert the new app
-		newSettingsContent := settingsStr[:installedAppsIndex+closeBracketIndex] +
-			"    '" + m.appName + "',\n" +
-			settingsStr[installedAppsIndex+closeBracketIndex:]
-
-		if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to update settings.py: %v", err)
-			return
-		}
-
-		m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
-	}
-
 	// Mark the project as setup completed
 	m.stepMessages = append(m.stepMessages, "✅ Project setup finished!")
 	m.doneChan <- true
+}
 
-	// Transition to stepServerOption to ask user if they want to run the server
-	m.step = stepServerOption
+// Helper function to get the correct Python path based on OS
+func getPythonPath(projectPath string) string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(projectPath, ".venv", "Scripts", "python.exe")
+	}
+	return filepath.Join(projectPath, ".venv", "bin", "python")
 }
 
 func main() {
