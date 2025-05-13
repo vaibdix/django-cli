@@ -98,6 +98,8 @@ func (m *Model) View() string {
 			currentStepPrimaryContent = headerStyle.Render("✨ App Templates Setup") + "\n\n" + m.appTemplateForm.View()
 		case stepServerOption:
 			currentStepPrimaryContent = headerStyle.Render("✨ Run Development Server?") + "\n\n" + m.serverForm.View()
+		case stepGitInit:
+			currentStepPrimaryContent = headerStyle.Render("✨ Initialize Git Repository?") + "\n\n" + m.gitForm.View()
 		default:
 			currentStepPrimaryContent = headerStyle.Render("✨ Unknown state")
 		}

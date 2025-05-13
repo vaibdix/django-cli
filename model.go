@@ -32,10 +32,12 @@ type Model struct {
 	appForm        *huh.Form
 	appTemplateForm *huh.Form
 	serverForm     *huh.Form
+	gitForm        *huh.Form
 	appName        string
 	createTemplates bool
 	createAppTemplates bool
 	runServer      bool
+	initializeGit  bool
 	stepMessages   []string
 	splashCountdown int
 	width          int
@@ -65,6 +67,7 @@ func NewModel() *Model {
 		createTemplates: false,
 		createAppTemplates: false,
 		runServer: false,
+		initializeGit: false,
 	}
 
 	theme := huh.ThemeBase()
@@ -155,6 +158,19 @@ func NewModel() *Model {
 					huh.NewOption("No", false),
 				).
 				Value(&m.runServer),
+		),
+	).WithTheme(theme)
+
+	m.gitForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[bool]().
+				Title("Initialize Git Repository").
+				Description("Would you like to initialize a Git repository and create a .gitignore file?").
+				Options(
+					huh.NewOption("Yes", true),
+					huh.NewOption("No", false),
+				).
+				Value(&m.initializeGit),
 		),
 	).WithTheme(theme)
 

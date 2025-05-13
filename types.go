@@ -12,6 +12,7 @@ const (
 	stepCreateApp
 	stepAppTemplates    
 	stepServerOption
+	stepGitInit
 )
 
 type progressMsg float64

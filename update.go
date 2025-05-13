@@ -274,19 +274,79 @@ urlpatterns = [
 		if f, ok := form.(*huh.Form); ok {
 			m.serverForm = f
 			if f.State == huh.StateCompleted {
-				if m.runServer {
-					wd, err := os.Getwd()
-					if err != nil {
-						m.error = fmt.Errorf("failed to get working directory: %v", err)
+				m.step = stepGitInit
+				return m, m.gitForm.Init()
+			}
+			return m, cmd
+		}
+	case stepGitInit:
+		form, cmd := m.gitForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.gitForm = f
+			if f.State == huh.StateCompleted {
+				wd, err := os.Getwd()
+				if err != nil {
+					m.error = fmt.Errorf("failed to get working directory: %v", err)
+					return m, nil
+				}
+				projectPath := filepath.Join(wd, m.projectName)
+
+				if m.initializeGit {
+					// Initialize Git repository
+					gitInitCmd := exec.Command("git", "init")
+					gitInitCmd.Dir = projectPath
+					if err := gitInitCmd.Run(); err != nil {
+						m.error = fmt.Errorf("failed to initialize Git repository: %v", err)
 						return m, nil
 					}
-					projectPath := filepath.Join(wd, m.projectName)
+					m.stepMessages = append(m.stepMessages, "✅ Git repository initialized.")
+
+					// Create .gitignore file
+					gitignoreContent := `# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+db.sqlite3
+/media/
+/static/
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+env/
+ENV.yml
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db`
+					gitignorePath := filepath.Join(projectPath, ".gitignore")
+					if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+						m.error = fmt.Errorf("failed to create .gitignore file: %v", err)
+						return m, nil
+					}
+					m.stepMessages = append(m.stepMessages, "✅ .gitignore file created.")
+				}
+
+				if m.runServer {
 					pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-					cmd := exec.Command(pythonPath, "manage.py", "runserver")
-					cmd.Dir = projectPath
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
-					if err := cmd.Start(); err != nil {
+					serverCmd := exec.Command(pythonPath, "manage.py", "runserver")
+					serverCmd.Dir = projectPath
+					serverCmd.Stdout = os.Stdout
+					serverCmd.Stderr = os.Stderr
+					if err := serverCmd.Start(); err != nil {
 						m.error = fmt.Errorf("failed to start development server: %v", err)
 						return m, nil
 					}

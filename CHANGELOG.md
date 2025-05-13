@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+-   Git repository initialization option
+-   Automatic `.gitignore` file creation for Django projects
+
 -   Initial release of Django CLI tool
 -   Project creation with customizable Django version
 -   Virtual environment setup using `uv`
@@ -23,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Development server launch option
 
 ### Features
+
+-   Git initialization and .gitignore creation
 
 -   Interactive CLI interface with step-by-step project setup
 -   Progress tracking and status messages
