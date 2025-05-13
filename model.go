@@ -36,9 +36,9 @@ type Model struct {
 	createTemplates bool
 	createAppTemplates bool
 	runServer      bool
-	stepMessages   []string 
-	splashCountdown int      
-	width          int       
+	stepMessages   []string
+	splashCountdown int
+	width          int
 }
 
 func NewModel() *Model {
@@ -59,9 +59,9 @@ func NewModel() *Model {
 		spinner:  s,
 		progress: p,
 		doneChan: make(chan bool),
-		step:     stepSplashScreen, 
-		splashCountdown: 3, 
-		features: []string{"vanilla"}, 
+		step:     stepSplashScreen,
+		splashCountdown: 3,
+		features: []string{"vanilla"},
 		createTemplates: false,
 		createAppTemplates: false,
 		runServer: false,
@@ -163,10 +163,10 @@ func NewModel() *Model {
 
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(
-		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg { 
+		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
 			return tickMsg{}
 		}),
-		m.inputForm.Init(), 
+		m.inputForm.Init(),
 	)
 }
 

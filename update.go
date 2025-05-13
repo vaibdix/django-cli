@@ -29,9 +29,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return tickMsg{}
 			})
 		}
-	case splashDoneMsg: 
+	case splashDoneMsg:
 		m.step = stepProjectName
-		return m, m.inputForm.Init() 
+		return m, m.inputForm.Init()
 	case progressMsg:
 		if float64(msg) >= 1.0 {
 			m.progress.SetPercent(1.0)
@@ -91,8 +91,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if f.State == huh.StateCompleted {
 				m.step = stepSetup
 				m.stepMessages = append(m.stepMessages, fmt.Sprintf("Templates setup: %v", m.createTemplates))
-				go m.createProject() 
-				return m, tea.Batch(m.spinner.Tick, m.updateProgress()) 
+				go m.CreateProject()
+				return m, tea.Batch(m.spinner.Tick, m.updateProgress())
 			}
 			return m, cmd
 		}
@@ -137,13 +137,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 
-					newSettingsContent := settingsStr[:installedAppsIndex+closeBracketIndex] +
-						"    '" + m.appName + "',\n" +
-						settingsStr[installedAppsIndex+closeBracketIndex:]
+					if m.appName != "" {
+						newSettingsContent := settingsStr[:installedAppsIndex+closeBracketIndex] +
+							"    '" + m.appName + "',\n" +
+							settingsStr[installedAppsIndex+closeBracketIndex:]
 
-					if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
-						m.error = fmt.Errorf("failed to update settings.py: %v", err)
-						return m, nil
+						if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
+							m.error = fmt.Errorf("failed to update settings.py: %v", err)
+							return m, nil
+						}
 					}
 
 					m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
@@ -193,10 +195,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					viewsContent := `from django.shortcuts import render
 
 def index(request):
+    app_name = getattr(request.resolver_match, 'app_name', '` + m.appName + `')
     context = {
-        'app_name': request.resolver_match.app_name
+        'app_name': app_name
     }
-    return render(request, f'{request.resolver_match.app_name}/index.html', context)`
+    return render(request, f'{app_name}/index.html', context)`
 					if err := os.WriteFile(viewsPath, []byte(viewsContent), 0644); err != nil {
 						m.error = fmt.Errorf("failed to create views.py: %v", err)
 						return m, nil
@@ -204,13 +207,14 @@ def index(request):
 
 					urlsPath := filepath.Join(projectPath, m.appName, "urls.py")
 					urlsContent := fmt.Sprintf(`from django.urls import path
+
 from . import views
 
 app_name = '%s'
-
 urlpatterns = [
     path('', views.index, name='index'),
-]`, m.appName)
+]
+`, m.appName)
 					if err := os.WriteFile(urlsPath, []byte(urlsContent), 0644); err != nil {
 						m.error = fmt.Errorf("failed to create urls.py: %v", err)
 						return m, nil
@@ -222,7 +226,8 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('` + m.appName + `.urls')),
+	path('__reload__/', include('django_browser_reload.urls')),
+    path('', include('` + m.appName + `.urls', namespace='` + m.appName + `')),
 ]`
 					if err := os.WriteFile(projectUrlsPath, []byte(projectUrlsContent), 0644); err != nil {
 						m.error = fmt.Errorf("failed to update project urls.py: %v", err)
@@ -269,3 +274,4 @@ urlpatterns = [
 
 	return m, nil
 }
+
