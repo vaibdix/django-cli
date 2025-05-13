@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		baseContent := `
 {% load django_browser_reload %}
 {% load static %}
-		<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">

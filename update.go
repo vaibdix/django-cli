@@ -57,7 +57,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputForm = f
 			if f.State == huh.StateCompleted {
 				m.step = stepDjangoVersion
-				m.stepMessages = append(m.stepMessages, "Project name selected: "+m.projectName)
+				m.stepMessages = append(m.stepMessages, "Project name selected: " + m.projectName)
 				return m, m.versionForm.Init()
 			}
 			return m, cmd
@@ -68,7 +68,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.versionForm = f
 			if f.State == huh.StateCompleted {
 				m.step = stepFeatures
-				m.stepMessages = append(m.stepMessages, "Django version selected: "+m.djangoVersion)
+				m.stepMessages = append(m.stepMessages, "Django version selected: " + m.djangoVersion)
 				return m, m.featureForm.Init()
 			}
 			return m, cmd
@@ -79,7 +79,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.featureForm = f
 			if f.State == huh.StateCompleted {
 				m.step = stepTemplates
-				m.stepMessages = append(m.stepMessages, "Features selected: "+fmt.Sprint(m.features))
+				m.stepMessages = append(m.stepMessages, "Features selected: " + fmt.Sprint(m.features))
 				return m, m.templateForm.Init()
 			}
 			return m, cmd
@@ -151,7 +151,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
 					m.step = stepAppTemplates
 					m.createAppTemplates = false // Reset the value
-					return m, m.appTemplateForm.Init()
+					return m, m.appForm.Init()
 				} else {
 					m.step = stepServerOption
 					return m, m.serverForm.Init()
@@ -164,35 +164,62 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if f, ok := form.(*huh.Form); ok {
 			m.appTemplateForm = f
 			if f.State == huh.StateCompleted {
-				if m.createAppTemplates {
-					wd, err := os.Getwd()
-					if err != nil {
-						m.error = fmt.Errorf("failed to get working directory: %v", err)
-						return m, nil
-					}
-					projectPath := filepath.Join(wd, m.projectName)
-					appTemplatesPath := filepath.Join(projectPath, m.appName, "templates", m.appName)
-					if err := os.MkdirAll(appTemplatesPath, 0755); err != nil {
-						m.error = fmt.Errorf("failed to create app templates directory: %v", err)
-						return m, nil
-					}
+				wd, err := os.Getwd()
+				if err != nil {
+					m.error = fmt.Errorf("failed to get working directory: %v", err)
+					return m, nil
+				}
+				projectPath := filepath.Join(wd, m.projectName)
+				appTemplatesPath := filepath.Join(projectPath, m.appName, "templates", m.appName)
+				if err := os.MkdirAll(appTemplatesPath, 0755); err != nil {
+					m.error = fmt.Errorf("failed to create app templates directory: %v", err)
+					return m, nil
+				}
 
-					indexPath := filepath.Join(appTemplatesPath, "index.html")
-					indexContent := `{% extends 'base.html' %}
+				// Check for global base.html
+				globalBasePath := filepath.Join(projectPath, "templates", "base.html")
+				baseExists := true
+				if _, err := os.Stat(globalBasePath); os.IsNotExist(err) {
+					baseExists = false
+				}
 
-					{% block content %}
-					<div class="container mt-5">
-						<h1 class="display-4">Welcome to {{ app_name }}</h1>
-						<p class="lead">Your Django app is ready to go!</p>
-					</div>
-					{% endblock content %}`
-					if err := os.WriteFile(indexPath, []byte(indexContent), 0644); err != nil {
-						m.error = fmt.Errorf("failed to create index.html: %v", err)
-						return m, nil
-					}
+				var indexContent string
+				if baseExists {
+					// Extend the base template if it exists
+					indexContent = `{% extends 'base.html' %}
 
-					viewsPath := filepath.Join(projectPath, m.appName, "views.py")
-					viewsContent := `from django.shortcuts import render
+                    {% block content %}
+                    <div class="container mt-5">
+                        <h1 class="display-4">Welcome to {{ app_name }}</h1>
+                        <p class="lead">Your Django app is ready to go!</p>
+                    </div>
+                    {% endblock content %}`
+				} else {
+					// Use a complete HTML structure if base.html doesn't exist
+					indexContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="display-4">Welcome to {{ app_name }}</h1>
+        <p class="lead">Your Django app is ready to go!</p>
+    </div>
+</body>
+</html>`
+				}
+
+				indexPath := filepath.Join(appTemplatesPath, "index.html")
+				if err := os.WriteFile(indexPath, []byte(indexContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create index.html: %v", err)
+					return m, nil
+				}
+
+				viewsPath := filepath.Join(projectPath, m.appName, "views.py")
+				viewsContent := `from django.shortcuts import render
 
 def index(request):
     app_name = getattr(request.resolver_match, 'app_name', '` + m.appName + `')
@@ -200,13 +227,13 @@ def index(request):
         'app_name': app_name
     }
     return render(request, f'{app_name}/index.html', context)`
-					if err := os.WriteFile(viewsPath, []byte(viewsContent), 0644); err != nil {
-						m.error = fmt.Errorf("failed to create views.py: %v", err)
-						return m, nil
-					}
+				if err := os.WriteFile(viewsPath, []byte(viewsContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create views.py: %v", err)
+					return m, nil
+				}
 
-					urlsPath := filepath.Join(projectPath, m.appName, "urls.py")
-					urlsContent := fmt.Sprintf(`from django.urls import path
+				urlsPath := filepath.Join(projectPath, m.appName, "urls.py")
+				urlsContent := fmt.Sprintf(`from django.urls import path
 
 from . import views
 
@@ -215,27 +242,27 @@ urlpatterns = [
     path('', views.index, name='index'),
 ]
 `, m.appName)
-					if err := os.WriteFile(urlsPath, []byte(urlsContent), 0644); err != nil {
-						m.error = fmt.Errorf("failed to create urls.py: %v", err)
-						return m, nil
-					}
+				if err := os.WriteFile(urlsPath, []byte(urlsContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create urls.py: %v", err)
+					return m, nil
+				}
 
-					projectUrlsPath := filepath.Join(projectPath, m.projectName, "urls.py")
-					projectUrlsContent := `from django.contrib import admin
+				projectUrlsPath := filepath.Join(projectPath, m.projectName, "urls.py")
+				projectUrlsContent := `from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-	path('__reload__/', include('django_browser_reload.urls')),
+    path('__reload__/', include('django_browser_reload.urls')),
     path('', include('` + m.appName + `.urls', namespace='` + m.appName + `')),
 ]`
-					if err := os.WriteFile(projectUrlsPath, []byte(projectUrlsContent), 0644); err != nil {
-						m.error = fmt.Errorf("failed to update project urls.py: %v", err)
-						return m, nil
-					}
-
-					m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created templates directory and index.html for %s app", m.appName))
+				if err := os.WriteFile(projectUrlsPath, []byte(projectUrlsContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to update project urls.py: %v", err)
+					return m, nil
 				}
+
+				m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created templates directory and index.html for %s app", m.appName))
+
 				m.step = stepServerOption
 				return m, m.serverForm.Init()
 			}
