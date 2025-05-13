@@ -64,10 +64,10 @@ func NewModel() *Model {
 		step:     stepSplashScreen,
 		splashCountdown: 3,
 		features: []string{"vanilla"},
-		createTemplates: false,
-		createAppTemplates: false,
-		runServer: false,
-		initializeGit: false,
+		createTemplates: true,
+		createAppTemplates: true,
+		runServer: true,
+		initializeGit: true,
 	}
 
 	theme := huh.ThemeBase()
@@ -128,8 +128,9 @@ func NewModel() *Model {
 				Title("Django Templates").
 				Description("Would you like to set up template directories?").
 				Options(
-					huh.NewOption("Yes", true),
 					huh.NewOption("No", false),
+					huh.NewOption("Yes", true),
+					
 				).
 				Value(&m.createTemplates),
 		),
@@ -141,8 +142,9 @@ func NewModel() *Model {
 				Title("App Templates").
 				Description("Would you like to set up templates for this app?").
 				Options(
-					huh.NewOption("Yes", true),
 					huh.NewOption("No", false),
+					huh.NewOption("Yes", true),
+					
 				).
 				Value(&m.createAppTemplates),
 		),
@@ -154,8 +156,9 @@ func NewModel() *Model {
 				Title("Run Development Server").
 				Description("Would you like to start the development server?").
 				Options(
-					huh.NewOption("Yes", true),
 					huh.NewOption("No", false),
+					huh.NewOption("Yes", true),
+					
 				).
 				Value(&m.runServer),
 		),
@@ -167,8 +170,9 @@ func NewModel() *Model {
 				Title("Initialize Git Repository").
 				Description("Would you like to initialize a Git repository and create a .gitignore file?").
 				Options(
-					huh.NewOption("Yes", true),
 					huh.NewOption("No", false),
+					huh.NewOption("Yes", true),
+					
 				).
 				Value(&m.initializeGit),
 		),
