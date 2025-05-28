@@ -6,182 +6,165 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	// "time" // Not needed if progress is discrete
 )
 
 func (m *Model) CreateProject() {
+	// This function will now send messages via m.program.Send()
+	// instead of returning an error or writing to m.error directly in this goroutine.
+	var currentErr error
+	defer func() {
+		if m.program != nil {
+			// Send finalization message
+			m.program.Send(projectCreationDoneMsg{err: currentErr})
+		}
+	}()
+
 	if m.projectName == "" {
-		m.error = fmt.Errorf("project name cannot be empty")
+		currentErr = fmt.Errorf("project name cannot be empty")
 		return
 	}
-	projectPath := m.projectName
+	projectPath := m.projectName // Relative path for now
 	if !filepath.IsAbs(projectPath) {
 		wd, err := os.Getwd()
 		if err != nil {
-			m.error = fmt.Errorf("failed to get working directory: %v", err)
+			currentErr = fmt.Errorf("failed to get working directory: %v", err)
 			return
 		}
 		projectPath = filepath.Join(wd, m.projectName)
 	}
 
+	// Create project directory
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
-		m.error = fmt.Errorf("failed to create project directory: %v", err)
+		currentErr = fmt.Errorf("failed to create project directory: %v", err)
 		return
 	}
-	m.stepMessages = append(m.stepMessages, "Project directory created.")
+	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Project directory created: %s", projectPath))
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.1, status: "Project directory created."})
+	}
 
-	m.progressStatus = "Creating virtual environment..."
-	cmd := exec.Command("uv", "venv", ".venv")
+	// Create virtual environment
+	pythonCmd := getPythonCommand()
+	if pythonCmd == "" {
+		currentErr = fmt.Errorf("no Python command (python3 or python) found in PATH")
+		return
+	}
+
+	var cmd *exec.Cmd
+	venvTool := ""
+	if isCommandAvailable("uv") {
+		cmd = exec.Command("uv", "venv", ".venv", "--python", pythonCmd)
+		venvTool = "uv"
+	} else {
+		cmd = exec.Command(pythonCmd, "-m", "venv", ".venv")
+		venvTool = "python -m venv"
+	}
 	cmd.Dir = projectPath
-	if err := cmd.Run(); err != nil {
-		m.error = fmt.Errorf("failed to create virtual environment: %v", err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		currentErr = fmt.Errorf("failed to create virtual environment using %s: %v\nOutput: %s", venvTool, err, string(output))
 		return
 	}
 	m.stepMessages = append(m.stepMessages, "Virtual environment created.")
-
-	version := m.djangoVersion
-	if version == "" {
-		version = "5.2.0"
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.25, status: "Virtual environment created."})
 	}
-	m.progressStatus = fmt.Sprintf("Installing Django %s and django-browser-reload...", version)
-	cmd = exec.Command("uv", "pip", "install", "django=="+version, "django-browser-reload")
+
+	// Install Django and django-browser-reload
+	djangoInstallVersion := m.djangoVersion
+	if djangoInstallVersion == "" || djangoInstallVersion == "latest" {
+		// Fetch latest stable Django version here if desired, or use a fixed recent one.
+		// For now, let Django/pip decide "latest" or use a default.
+		// If you specify no version, pip installs the latest.
+		// For explicit default:
+		djangoInstallVersion = "Django" // Pip will get latest
+		if m.djangoVersion != "" && m.djangoVersion != "latest" { // User specified a version
+		    djangoInstallVersion = "Django==" + m.djangoVersion
+        }
+	} else {
+		djangoInstallVersion = "Django==" + djangoInstallVersion
+	}
+
+	installCmdArgs := []string{"install", djangoInstallVersion, "django-browser-reload"}
+	pipTool := ""
+	if isCommandAvailable("uv") {
+		cmd = exec.Command("uv", append([]string{"pip"}, installCmdArgs...)...)
+		pipTool = "uv pip"
+	} else {
+		pipPath := getPipPath(projectPath)
+		cmd = exec.Command(pipPath, installCmdArgs...)
+		pipTool = "pip"
+	}
 	cmd.Dir = projectPath
-	if err := cmd.Run(); err != nil {
-		m.error = fmt.Errorf("failed to install Django and django-browser-reload: %v", err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		currentErr = fmt.Errorf("failed to install Django and django-browser-reload using %s: %v\nOutput: %s", pipTool, err, string(output))
 		return
 	}
-	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Django %s and django-browser-reload installed.", version))
+	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Django and django-browser-reload installed using %s.", pipTool))
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.5, status: "Django and dependencies installed."})
+	}
 
-	m.progressStatus = "Creating Django project..."
-	pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-	cmd = exec.Command(pythonPath, "-m", "django", "startproject", m.projectName, ".")
+	// Create Django project
+	pythonVenvPath := getPythonPath(projectPath)
+	cmd = exec.Command(pythonVenvPath, "-m", "django", "startproject", m.projectName, ".")
 	cmd.Dir = projectPath
-	if err := cmd.Run(); err != nil {
-		m.error = fmt.Errorf("failed to create Django project: %v", err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		currentErr = fmt.Errorf("failed to create Django project: %v\nOutput: %s", err, string(output))
 		return
 	}
 	m.stepMessages = append(m.stepMessages, "Django project created.")
-	m.stepMessages = append(m.stepMessages, "Using vanilla Django setup")
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.7, status: "Django project structure created."})
+	}
 
-	// Ensure django-browser-reload is added to INSTALLED_APPS
+	// Modify settings.py
 	settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
-	settingsContent, err := os.ReadFile(settingsPath)
+	settingsContentBytes, err := os.ReadFile(settingsPath)
 	if err != nil {
-		m.error = fmt.Errorf("failed to read settings.py: %v", err)
+		currentErr = fmt.Errorf("failed to read settings.py: %v", err)
 		return
 	}
-	settingsStr := string(settingsContent)
-	installedAppsIndex := strings.Index(settingsStr, "INSTALLED_APPS = [")
-	if installedAppsIndex == -1 {
-		m.error = fmt.Errorf("could not find INSTALLED_APPS in settings.py")
-		return
-	}
-	closeBracketIndex := strings.Index(settingsStr[installedAppsIndex:], "]")
-	if closeBracketIndex == -1 {
-		m.error = fmt.Errorf("malformed INSTALLED_APPS in settings.py")
-		return
-	}
-	installedAppsBlock := settingsStr[installedAppsIndex : installedAppsIndex+closeBracketIndex+1]
-	newInstalledAppsBlock := installedAppsBlock
-	if !strings.Contains(installedAppsBlock, "'django_browser_reload'") {
-		newInstalledAppsBlock = strings.Replace(installedAppsBlock, "]", "    'django_browser_reload',\n]", 1)
-	}
-	if m.appName != "" && !strings.Contains(installedAppsBlock, fmt.Sprintf("'%s'", m.appName)) {
-		newInstalledAppsBlock = strings.Replace(newInstalledAppsBlock, "]", fmt.Sprintf("    '%s',\n]", m.appName), 1)
-	}
-	newSettingsContent := settingsStr[:installedAppsIndex] + newInstalledAppsBlock + settingsStr[installedAppsIndex+closeBracketIndex+1:]
-	if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
-		m.error = fmt.Errorf("failed to update settings.py: %v", err)
-		return
-	}
-	m.stepMessages = append(m.stepMessages, "✅ Added django-browser-reload to INSTALLED_APPS")
+	settingsContent := string(settingsContentBytes)
 
-	// Add django-browser-reload middleware
-	settingsContent, err = os.ReadFile(settingsPath)
+	// Add django_browser_reload to INSTALLED_APPS
+	settingsContent, err = addToListInSettingsPy(settingsContent, "INSTALLED_APPS", "django_browser_reload")
 	if err != nil {
-		m.error = fmt.Errorf("failed to read settings.py: %v", err)
+		currentErr = fmt.Errorf("failed to add django_browser_reload to INSTALLED_APPS: %v", err)
 		return
 	}
-	settingsStr = string(settingsContent)
-	middlewareMarker := "MIDDLEWARE = ["
-	middlewareIndex := strings.Index(settingsStr, middlewareMarker)
-	if middlewareIndex == -1 {
-		m.error = fmt.Errorf("could not find MIDDLEWARE in settings.py")
+	m.stepMessages = append(m.stepMessages, "✅ Added django-browser-reload to INSTALLED_APPS.")
+
+	// Add django_browser_reload.middleware.BrowserReloadMiddleware to MIDDLEWARE
+	settingsContent, err = addToListInSettingsPy(settingsContent, "MIDDLEWARE", "django_browser_reload.middleware.BrowserReloadMiddleware")
+	if err != nil {
+		currentErr = fmt.Errorf("failed to add BrowserReloadMiddleware to MIDDLEWARE: %v", err)
 		return
 	}
+	m.stepMessages = append(m.stepMessages, "✅ Added django-browser-reload middleware.")
 
-	middlewareEndIndex := strings.Index(settingsStr[middlewareIndex:], "]")
-	if middlewareEndIndex == -1 {
-		m.error = fmt.Errorf("malformed MIDDLEWARE in settings.py")
-		return
-	}
-	middlewareEndIndex += middlewareIndex
-
-	browserReloadMiddleware := "    'django_browser_reload.middleware.BrowserReloadMiddleware',"
-	if !strings.Contains(settingsStr[middlewareIndex:middlewareEndIndex+1], browserReloadMiddleware) {
-		insertionPoint := middlewareEndIndex
-		// Add a comma if the list is not empty
-		if strings.TrimSpace(string(settingsStr[insertionPoint-1])) != "[" {
-			settingsStr = settingsStr[:insertionPoint] + "\n" + browserReloadMiddleware + settingsStr[insertionPoint:]
-		} else {
-			settingsStr = settingsStr[:insertionPoint] + "\n" + browserReloadMiddleware + settingsStr[insertionPoint:]
-		}
-		if err := os.WriteFile(settingsPath, []byte(settingsStr), 0644); err != nil {
-			m.error = fmt.Errorf("failed to update settings.py with browser-reload middleware: %v", err)
-			return
-		}
-		m.stepMessages = append(m.stepMessages, "✅ Added django-browser-reload middleware")
-	}
-
+	// Configure templates and static files if chosen
 	if m.createTemplates {
+		// Global templates directory
 		globalTemplatesPath := filepath.Join(projectPath, "templates")
 		if err := os.MkdirAll(globalTemplatesPath, 0755); err != nil {
-			m.error = fmt.Errorf("failed to create global templates directory: %v", err)
+			currentErr = fmt.Errorf("failed to create global templates directory: %v", err)
 			return
 		}
 
+		// Global static directory and subdirectories
 		staticPath := filepath.Join(projectPath, "static")
 		if err := os.MkdirAll(filepath.Join(staticPath, "css"), 0755); err != nil {
-			m.error = fmt.Errorf("failed to create static/css directory: %v", err)
+			currentErr = fmt.Errorf("failed to create static/css directory: %v", err)
 			return
 		}
 		if err := os.MkdirAll(filepath.Join(staticPath, "js"), 0755); err != nil {
-			m.error = fmt.Errorf("failed to create static/js directory: %v", err)
+			currentErr = fmt.Errorf("failed to create static/js directory: %v", err)
 			return
 		}
-
-		styleContent := `/* Global styles */
-* {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-}
-body {
-	font-family: Arial, sans-serif;
-	line-height: 1.6;
-	padding: 20px;
-}
-h1 {
-	color: red;
-	margin-bottom: 20px;
-}`
-		stylePath := filepath.Join(staticPath, "css", "style.css")
-		if err := os.WriteFile(stylePath, []byte(styleContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to create style.css: %v", err)
-			return
-		}
-		jsContent := `// Main JavaScript file
-document.addEventListener('DOMContentLoaded', function() {
-	console.log('Django project initialized!');
-});
-`
-		jsPath := filepath.Join(staticPath, "js", "main.js")
-		if err := os.WriteFile(jsPath, []byte(jsContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to create main.js: %v", err)
-			return
-		}
-		baseContent := `
+		// Create base.html, index.html, style.css, main.js
+		baseContent := `{% load static %}
 {% load django_browser_reload %}
-{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -196,124 +179,73 @@ document.addEventListener('DOMContentLoaded', function() {
         {% block content %}{% endblock %}
     </div>
     <script src="{% static 'js/main.js' %}"></script>
-
+    {{ django_browser_reload_script }}
 </body>
-</html>
-`
-		basePath := filepath.Join(globalTemplatesPath, "base.html")
-		if err := os.WriteFile(basePath, []byte(baseContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to create base.html: %v", err)
+</html>`
+		if err := os.WriteFile(filepath.Join(globalTemplatesPath, "base.html"), []byte(baseContent), 0644); err != nil {
+			currentErr = fmt.Errorf("failed to create base.html: %v", err)
 			return
 		}
 		indexContent := `{% extends 'base.html' %}
-{% load static %}
 {% block title %}Home{% endblock %}
 {% block content %}
-    <h1>Welcome to My Django Project!</h1>
-    <p>This is a basic index page.</p>
-{% endblock %}
-`
-		indexPath := filepath.Join(globalTemplatesPath, "index.html")
-		if err := os.WriteFile(indexPath, []byte(indexContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to create index.html: %v", err)
+    <h1>Welcome to {{ project_name }}!</h1>
+    <p>Your Django project is ready.</p>
+{% endblock %}`
+		if err := os.WriteFile(filepath.Join(globalTemplatesPath, "index.html"), []byte(indexContent), 0644); err != nil {
+			currentErr = fmt.Errorf("failed to create index.html: %v", err)
 			return
 		}
-
-		m.stepMessages = append(m.stepMessages, "✅ Created global templates directory with base.html and index.html")
-
-		settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
-		settingsContent, err := os.ReadFile(settingsPath)
-		if err != nil {
-			m.error = fmt.Errorf("failed to read settings.py: %v", err)
+		styleContent := `body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; } h1 { color: #2c3e50; }`
+		if err := os.WriteFile(filepath.Join(staticPath, "css", "style.css"), []byte(styleContent), 0644); err != nil {
+			currentErr = fmt.Errorf("failed to create style.css: %v", err)
 			return
 		}
-
-		settingsStr := string(settingsContent)
-		templatesIndex := strings.Index(settingsStr, "'DIRS': []")
-		if templatesIndex == -1 {
-			m.error = fmt.Errorf("could not find TEMPLATES setting in settings.py")
+		jsContent := `console.log('Django project initialized!');`
+		if err := os.WriteFile(filepath.Join(staticPath, "js", "main.js"), []byte(jsContent), 0644); err != nil {
+			currentErr = fmt.Errorf("failed to create main.js: %v", err)
 			return
 		}
+		m.stepMessages = append(m.stepMessages, "✅ Created global templates and static files.")
 
-		newSettingsContent := strings.Replace(settingsStr, "'DIRS': []", "'DIRS': [BASE_DIR / 'templates',]", 1)
+		// Update DIRS in TEMPLATES setting
+		// This is a simplified replacement. A more robust method would parse the TEMPLATES structure.
+		templatesDirsSetting := "'DIRS': [BASE_DIR / 'templates']"
+		if !strings.Contains(settingsContent, templatesDirsSetting) {
+			settingsContent = strings.Replace(settingsContent, "'DIRS': []", templatesDirsSetting, 1)
+		}
 
-		if !strings.Contains(newSettingsContent, "import os") {
-			importIndex := strings.Index(newSettingsContent, "from pathlib import Path")
-			if importIndex != -1 {
-				newSettingsContent = newSettingsContent[:importIndex] + "import os\n" + newSettingsContent[importIndex:]
+		// Add STATICFILES_DIRS
+		staticfilesDirsSetting := "STATICFILES_DIRS = [\n    BASE_DIR / 'static',\n]"
+		if !strings.Contains(settingsContent, "STATICFILES_DIRS") {
+			// Add near STATIC_URL or at the end of the file
+			staticUrlMarker := "STATIC_URL = "
+			idx := strings.Index(settingsContent, staticUrlMarker)
+			if idx != -1 {
+				// Find end of that line
+				lineEndIdx := strings.Index(settingsContent[idx:], "\n")
+				if lineEndIdx != -1 {
+					insertPos := idx + lineEndIdx +1
+					settingsContent = settingsContent[:insertPos] + "\n" + staticfilesDirsSetting + "\n" + settingsContent[insertPos:]
+				} else { // STATIC_URL is the last line
+					settingsContent += "\n\n" + staticfilesDirsSetting + "\n"
+				}
+			} else { // Fallback: add to the end
+				settingsContent += "\n\n" + staticfilesDirsSetting + "\n"
 			}
 		}
-
-		if !strings.Contains(newSettingsContent, "STATICFILES_DIRS") {
-			newSettingsContent += "\n# Static files (CSS, JavaScript, Images)\nSTATICFILES_DIRS = [\n    BASE_DIR / 'static',\n]\n"
-		}
-
-		if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to update settings.py: %v", err)
-			return
-		}
-		m.stepMessages = append(m.stepMessages, "✅ Updated settings.py with templates configuration")
+		m.stepMessages = append(m.stepMessages, "✅ Configured settings for global templates and static files.")
 	}
 
-	if m.appName != "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			m.error = fmt.Errorf("failed to get working directory: %v", err)
-			return
-		}
-		projectPath := filepath.Join(wd, m.projectName)
-		pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-		cmd := exec.Command(pythonPath, "manage.py", "startapp", m.appName)
-		cmd.Dir = projectPath
-		if err := cmd.Run(); err != nil {
-			m.error = fmt.Errorf("failed to create app: %v", err)
-			return
-		}
-
-		if m.createTemplates {
-			appTemplatesPath := filepath.Join(projectPath, "templates", m.appName)
-			if err := os.MkdirAll(appTemplatesPath, 0755); err != nil {
-				m.error = fmt.Errorf("failed to create app templates directory: %v", err)
-				return
-			}
-			m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created templates directory for %s app", m.appName))
-		}
-
-		settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
-		settingsContent, err := os.ReadFile(settingsPath)
-		if err != nil {
-			m.error = fmt.Errorf("failed to read settings.py: %v", err)
-			return
-		}
-
-		settingsStr := string(settingsContent)
-		installedAppsIndex := strings.Index(settingsStr, "INSTALLED_APPS = [")
-		if installedAppsIndex == -1 {
-			m.error = fmt.Errorf("could not find INSTALLED_APPS in settings.py")
-			return
-		}
-
-		closeBracketIndex := strings.Index(settingsStr[installedAppsIndex:], "]")
-		if closeBracketIndex == -1 {
-			m.error = fmt.Errorf("malformed INSTALLED_APPS in settings.py")
-			return
-		}
-
-		installedAppsBlock := settingsStr[installedAppsIndex : installedAppsIndex+closeBracketIndex+1]
-		newInstalledAppsBlock := installedAppsBlock
-		if !strings.Contains(installedAppsBlock, fmt.Sprintf("'%s'", m.appName)) {
-			newInstalledAppsBlock = strings.Replace(installedAppsBlock, "]", fmt.Sprintf("    '%s',\n]", m.appName), 1)
-		}
-		newSettingsContent := settingsStr[:installedAppsIndex] + newInstalledAppsBlock + settingsStr[installedAppsIndex+closeBracketIndex+1:]
-
-		if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
-			m.error = fmt.Errorf("failed to update settings.py: %v", err)
-			return
-		}
-
-		m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
+	// Write updated settings.py
+	if err := os.WriteFile(settingsPath, []byte(settingsContent), 0644); err != nil {
+		currentErr = fmt.Errorf("failed to write updated settings.py: %v", err)
+		return
+	}
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.9, status: "Settings configured."})
 	}
 
-	m.stepMessages = append(m.stepMessages, "✅ Project setup finished!")
-	m.doneChan <- true
+	m.stepMessages = append(m.stepMessages, "✅ Django project core setup finished!")
+	// Final progress update will be handled by projectCreationDoneMsg logic in Update()
 }

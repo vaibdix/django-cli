@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
+
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,37 +11,42 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type splashDoneMsg struct{}
-type tickMsg struct{}
-
 type Model struct {
-	step           step
-	projectName    string
-	djangoVersion  string
-	features       []string
-	spinner        spinner.Model
-	progress       progress.Model
+	step          step
+	projectName   string
+	djangoVersion string
+	features      []string // Currently only "vanilla"
+	spinner       spinner.Model
+	progress      progress.Model
 	progressStatus string
-	error          error
-	done           bool
-	doneChan       chan bool
+	error         error
+	done          bool
 
-	inputForm      *huh.Form
-	versionForm    *huh.Form
-	featureForm    *huh.Form
-	templateForm   *huh.Form
-	appForm        *huh.Form
-	appTemplateForm *huh.Form
-	serverForm     *huh.Form
-	gitForm        *huh.Form
-	appName        string
-	createTemplates bool
-	createAppTemplates bool
-	runServer      bool
-	initializeGit  bool
-	stepMessages   []string
+	program *tea.Program
+
+	inputForm   *huh.Form
+	versionForm *huh.Form
+	featureForm *huh.Form
+	templateForm *huh.Form // For global templates
+
+	// For app creation and its templates
+	appNameInput      *huh.Input   // Store the input field for appName
+	appForm           *huh.Form    // Form that contains appNameInput
+	appTemplateSelect *huh.Select[bool] // Store the select field for app templates
+	appTemplateForm   *huh.Form    // Form that contains appTemplateSelect
+
+	serverForm  *huh.Form
+	gitForm     *huh.Form
+
+	appName            string
+	createTemplates    bool // For global templates/static
+	createAppTemplates bool // For app-specific templates
+	runServer          bool
+	initializeGit      bool
+
+	stepMessages    []string
 	splashCountdown int
-	width          int
+	width           int
 }
 
 func NewModel() *Model {
@@ -58,16 +64,16 @@ func NewModel() *Model {
 	)
 
 	m := &Model{
-		spinner:  s,
-		progress: p,
-		doneChan: make(chan bool),
-		step:     stepSplashScreen,
-		splashCountdown: 3,
-		features: []string{"vanilla"},
-		createTemplates: true,
+		spinner:            s,
+		progress:           p,
+		step:               stepSplashScreen,
+		splashCountdown:    3,
+		features:           []string{"vanilla"},
+		createTemplates:    true,
 		createAppTemplates: true,
-		runServer: true,
-		initializeGit: true,
+		runServer:          true,
+		initializeGit:      true,
+		progressStatus:     "Initializing...",
 	}
 
 	theme := huh.ThemeBase()
@@ -85,7 +91,7 @@ func NewModel() *Model {
 				Value(&m.projectName).
 				Validate(func(s string) error {
 					if s == "" {
-						return fmt.Errorf("Project name cannot be empty")
+						return fmt.Errorf("project name cannot be empty")
 					}
 					return nil
 				}),
@@ -96,7 +102,8 @@ func NewModel() *Model {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Django version").
-				Description("Press Enter to use default version (5.2.0)").
+				Description("Press Enter to use default version (e.g., 5.2.0 or latest stable).").
+				Placeholder("latest").
 				Value(&m.djangoVersion),
 		),
 	).WithTheme(theme)
@@ -113,52 +120,50 @@ func NewModel() *Model {
 		),
 	).WithTheme(theme)
 
-	m.appForm = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Create Django App").
-				Description("Enter app name (optional, press Enter to skip)").
-				Value(&m.appName),
-		),
-	).WithTheme(theme)
-
 	m.templateForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[bool]().
-				Title("Django Templates").
-				Description("Would you like to set up template directories?").
+				Title("Global Templates & Static").
+				Description("Set up global 'templates' and 'static' directories? (Recommended)").
 				Options(
-					huh.NewOption("No", false),
 					huh.NewOption("Yes", true),
-					
+					huh.NewOption("No", false),
 				).
 				Value(&m.createTemplates),
 		),
 	).WithTheme(theme)
 
-	m.appTemplateForm = huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[bool]().
-				Title("App Templates").
-				Description("Would you like to set up templates for this app?").
-				Options(
-					huh.NewOption("No", false),
-					huh.NewOption("Yes", true),
-					
-				).
-				Value(&m.createAppTemplates),
-		),
+	// App Name Input Field and Form
+	m.appNameInput = huh.NewInput().
+		Title("Create Initial Django App"). // Static title for the input field itself
+		Description("Enter app name (optional, press Enter to skip)").
+		Value(&m.appName)
+	m.appForm = huh.NewForm(
+		huh.NewGroup(m.appNameInput),
 	).WithTheme(theme)
+
+	// App Template Select Field and Form
+	m.appTemplateSelect = huh.NewSelect[bool]().
+		Title("App Templates"). // Generic initial title, will be updated
+		Description("Set up basic templates and views for this app?").
+		Options(
+			huh.NewOption("Yes", true),
+			huh.NewOption("No", false),
+		).
+		Value(&m.createAppTemplates)
+	m.appTemplateForm = huh.NewForm(
+		huh.NewGroup(m.appTemplateSelect),
+	).WithTheme(theme)
+
 
 	m.serverForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[bool]().
 				Title("Run Development Server").
-				Description("Would you like to start the development server?").
+				Description("Start the Django development server after setup? (python manage.py runserver)").
 				Options(
-					huh.NewOption("No", false),
 					huh.NewOption("Yes", true),
-					
+					huh.NewOption("No", false),
 				).
 				Value(&m.runServer),
 		),
@@ -168,11 +173,10 @@ func NewModel() *Model {
 		huh.NewGroup(
 			huh.NewSelect[bool]().
 				Title("Initialize Git Repository").
-				Description("Would you like to initialize a Git repository and create a .gitignore file?").
+				Description("Initialize a Git repository and create a .gitignore file?").
 				Options(
-					huh.NewOption("No", false),
 					huh.NewOption("Yes", true),
-					
+					huh.NewOption("No", false),
 				).
 				Value(&m.initializeGit),
 		),
@@ -181,25 +185,15 @@ func NewModel() *Model {
 	return m
 }
 
+func (m *Model) SetProgram(p *tea.Program) {
+	m.program = p
+}
+
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
-			return tickMsg{}
+			return tickMsg{} // For splash screen countdown
 		}),
-		m.inputForm.Init(),
+		m.spinner.Tick,
 	)
-}
-
-func (m *Model) updateProgress() tea.Cmd {
-	return func() tea.Msg {
-		for {
-			select {
-			case <-m.doneChan:
-				return progressMsg(1.0)
-			default:
-				time.Sleep(100 * time.Millisecond)
-				return progressMsg(m.progress.Percent() + 0.1)
-			}
-		}
-	}
 }

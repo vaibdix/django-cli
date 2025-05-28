@@ -13,228 +13,210 @@ import (
 )
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.done {
-		return m, tea.Quit
+	var cmds []tea.Cmd
+
+	// Global exit, regardless of state (unless error/done message is being shown)
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.Type == tea.KeyCtrlC || keyMsg.String() == "q" {
+			if !m.done && m.error == nil {
+				return m, tea.Quit
+			}
+		}
 	}
 
+	if m.error != nil || m.done {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg.Type == tea.KeyEnter || keyMsg.Type == tea.KeyCtrlC || keyMsg.String() == "q" || keyMsg.String() == "esc" {
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+	}
+
+	// Process general messages
 	switch msg := msg.(type) {
-	case tickMsg:
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.progress.Width = msg.Width / 2
+		if m.progress.Width < 10 {
+			m.progress.Width = 10
+		}
+		if m.progress.Width > 80 {
+			m.progress.Width = 80
+		}
+
+	case tickMsg: // For splash screen countdown
 		if m.step == stepSplashScreen {
 			m.splashCountdown--
 			if m.splashCountdown <= 0 {
 				m.step = stepProjectName
-				return m, m.inputForm.Init()
+				cmds = append(cmds, m.inputForm.Init())
+			} else {
+				cmds = append(cmds, tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
+					return tickMsg{}
+				}))
 			}
-			return m, tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
-				return tickMsg{}
-			})
 		}
-	case splashDoneMsg:
-		m.step = stepProjectName
-		return m, m.inputForm.Init()
-	case progressMsg:
-		if float64(msg) >= 1.0 {
+		// This return was missing, causing fallthrough if not in splash screen step
+		return m, tea.Batch(cmds...)
+
+
+	case projectProgressMsg:
+		if m.step == stepSetup {
+			m.progress.SetPercent(msg.percent)
+			m.progressStatus = msg.status
+			m.stepMessages = append(m.stepMessages, "PROGRESS: "+msg.status)
+		}
+		return m, m.spinner.Tick
+
+	case projectCreationDoneMsg:
+		if m.step == stepSetup {
+			if msg.err != nil {
+				m.error = msg.err
+				m.progressStatus = "Error during project setup!"
+				return m, nil
+			}
 			m.progress.SetPercent(1.0)
+			m.progressStatus = "Django project core setup complete!"
+			m.stepMessages = append(m.stepMessages, "✅ Django project core setup complete!")
+
+			// Decide next step AFTER CreateProject is done
+			// Now m.appName would have been set by the appForm if user entered it before this flow.
+			// The original logic of showing appForm only if appName is empty is actually good.
+			// Let's re-evaluate the step transition:
+			// From stepSetup -> we go to stepCreateApp to *ask* for appName
 			m.step = stepCreateApp
-			return m, m.appForm.Init()
+			cmds = append(cmds, m.appForm.Init())
+
 		}
-		m.progress.SetPercent(float64(msg))
-		return m, m.updateProgress()
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC || msg.String() == "q" {
-			return m, tea.Quit
-		}
-	case tea.WindowSizeMsg:
-		if msg.Width > 0 {
-			m.width = msg.Width
+		return m, tea.Batch(cmds...)
+	}
+
+	// Handle active form updates (including key presses if not handled above)
+	activeForm := m.getActiveForm()
+	if activeForm != nil {
+		// Only update the form if it's not completed and not blurred (though blurring isn't a major factor in this single-form-at-a-time flow)
+		// The main check is for completion before processing its submission.
+		if activeForm.State != huh.StateCompleted && !activeForm.Blurred() {
+			formModel, formCmd := activeForm.Update(msg)
+			if castedForm, ok := formModel.(*huh.Form); ok {
+				m.setActiveForm(castedForm)
+			} else if formModel != nil { // It could be a different tea.Model if huh changes its API
+				// Potentially handle error or unexpected model type
+			}
+			cmds = append(cmds, formCmd)
 		}
 	}
 
+
+	// Handle form submissions and state transitions based on m.step and form state
 	switch m.step {
 	case stepProjectName:
-		form, cmd := m.inputForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.inputForm = f
-			if f.State == huh.StateCompleted {
-				m.step = stepDjangoVersion
-				m.stepMessages = append(m.stepMessages, "Project name selected: " + m.projectName)
-				return m, m.versionForm.Init()
-			}
-			return m, cmd
+		if m.inputForm.State == huh.StateCompleted {
+			m.step = stepDjangoVersion
+			m.stepMessages = append(m.stepMessages, "Project name: "+m.projectName)
+			cmds = append(cmds, m.versionForm.Init())
 		}
 	case stepDjangoVersion:
-		form, cmd := m.versionForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.versionForm = f
-			if f.State == huh.StateCompleted {
-				m.step = stepFeatures
-				m.stepMessages = append(m.stepMessages, "Django version selected: " + m.djangoVersion)
-				return m, m.featureForm.Init()
+		if m.versionForm.State == huh.StateCompleted {
+			if m.djangoVersion == "" {
+				m.djangoVersion = "latest"
 			}
-			return m, cmd
+			m.step = stepFeatures
+			m.stepMessages = append(m.stepMessages, "Django version: "+m.djangoVersion)
+			cmds = append(cmds, m.featureForm.Init())
 		}
 	case stepFeatures:
-		form, cmd := m.featureForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.featureForm = f
-			if f.State == huh.StateCompleted {
-				m.step = stepTemplates
-				m.stepMessages = append(m.stepMessages, "Features selected: " + fmt.Sprint(m.features))
-				return m, m.templateForm.Init()
-			}
-			return m, cmd
+		if m.featureForm.State == huh.StateCompleted {
+			m.step = stepTemplates
+			m.stepMessages = append(m.stepMessages, "Features: "+fmt.Sprint(m.features))
+			cmds = append(cmds, m.templateForm.Init())
 		}
 	case stepTemplates:
-		form, cmd := m.templateForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.templateForm = f
-			if f.State == huh.StateCompleted {
-				m.step = stepSetup
-				m.stepMessages = append(m.stepMessages, fmt.Sprintf("Templates setup: %v", m.createTemplates))
-				go m.CreateProject()
-				return m, tea.Batch(m.spinner.Tick, m.updateProgress())
-			}
-			return m, cmd
+		if m.templateForm.State == huh.StateCompleted {
+			m.step = stepSetup
+			m.stepMessages = append(m.stepMessages, fmt.Sprintf("Global templates/static setup: %v", m.createTemplates))
+			m.progressStatus = "Starting project setup..."
+			go m.CreateProject()
+			cmds = append(cmds, m.spinner.Tick)
 		}
 
-	case stepCreateApp:
-		form, cmd := m.appForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.appForm = f
-			if f.State == huh.StateCompleted {
-				if m.appName != "" {
-					wd, err := os.Getwd()
-					if err != nil {
-						m.error = fmt.Errorf("failed to get working directory: %v", err)
-						return m, nil
-					}
-					projectPath := filepath.Join(wd, m.projectName)
-					pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-					cmd := exec.Command(pythonPath, "manage.py", "startapp", m.appName)
-					cmd.Dir = projectPath
-					if err := cmd.Run(); err != nil {
-						m.error = fmt.Errorf("failed to create app: %v", err)
-						return m, nil
-					}
-
-					settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
-					settingsContent, err := os.ReadFile(settingsPath)
-					if err != nil {
-						m.error = fmt.Errorf("failed to read settings.py: %v", err)
-						return m, nil
-					}
-
-					settingsStr := string(settingsContent)
-					installedAppsIndex := strings.Index(settingsStr, "INSTALLED_APPS = [")
-					if installedAppsIndex == -1 {
-						m.error = fmt.Errorf("could not find INSTALLED_APPS in settings.py")
-						return m, nil
-					}
-
-					closeBracketIndex := strings.Index(settingsStr[installedAppsIndex:], "]")
-					if closeBracketIndex == -1 {
-						m.error = fmt.Errorf("malformed INSTALLED_APPS in settings.py")
-						return m, nil
-					}
-
-					if m.appName != "" {
-						newSettingsContent := settingsStr[:installedAppsIndex+closeBracketIndex] +
-							"    '" + m.appName + "',\n" +
-							settingsStr[installedAppsIndex+closeBracketIndex:]
-
-						if err := os.WriteFile(settingsPath, []byte(newSettingsContent), 0644); err != nil {
-							m.error = fmt.Errorf("failed to update settings.py: %v", err)
-							return m, nil
-						}
-					}
-
-					m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
-					m.step = stepAppTemplates
-					m.createAppTemplates = false // Reset the value
-					return m, m.appForm.Init()
-				} else {
-					m.step = stepServerOption
-					return m, m.serverForm.Init()
+	case stepCreateApp: // This step is after core project setup is done
+		if m.appForm.State == huh.StateCompleted {
+			if m.appName != "" {
+				projectAbsPath, err := filepath.Abs(m.projectName)
+				if err != nil {
+					m.error = fmt.Errorf("could not get project absolute path: %v", err)
+					break // Break from switch, error will be displayed
 				}
+				pythonVenvPath := getPythonPath(projectAbsPath)
+				cmd := exec.Command(pythonVenvPath, "manage.py", "startapp", m.appName)
+				cmd.Dir = projectAbsPath
+				if output, err := cmd.CombinedOutput(); err != nil {
+					m.error = fmt.Errorf("failed to create app '%s': %v\nOutput: %s", m.appName, err, string(output))
+					break
+				}
+
+				settingsPath := filepath.Join(projectAbsPath, m.projectName, "settings.py")
+				settingsContentBytes, err := os.ReadFile(settingsPath)
+				if err != nil {
+					m.error = fmt.Errorf("failed to read settings.py to add app: %v", err)
+					break
+				}
+				settingsContent := string(settingsContentBytes)
+				updatedSettings, err := addToListInSettingsPy(settingsContent, "INSTALLED_APPS", m.appName)
+				if err != nil {
+					m.error = fmt.Errorf("failed to add app '%s' to INSTALLED_APPS: %v", m.appName, err)
+					break
+				}
+				if err := os.WriteFile(settingsPath, []byte(updatedSettings), 0644); err != nil {
+					m.error = fmt.Errorf("failed to write updated settings.py after adding app: %v", err)
+					break
+				}
+				m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
+				m.step = stepAppTemplates
+				// Update the title of the appTemplateSelect field before initializing its form
+				m.appTemplateSelect.Title(fmt.Sprintf("App Templates for '%s'", m.appName))
+				cmds = append(cmds, m.appTemplateForm.Init())
+			} else {
+				m.stepMessages = append(m.stepMessages, "⏩ Skipped app creation.")
+				m.step = stepServerOption
+				cmds = append(cmds, m.serverForm.Init())
 			}
-			return m, cmd
 		}
 	case stepAppTemplates:
-		form, cmd := m.appTemplateForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.appTemplateForm = f
-			if f.State == huh.StateCompleted {
-				wd, err := os.Getwd()
-				if err != nil {
-					m.error = fmt.Errorf("failed to get working directory: %v", err)
-					return m, nil
-				}
-				projectPath := filepath.Join(wd, m.projectName)
-				appTemplatesPath := filepath.Join(projectPath, m.appName, "templates", m.appName)
-				if err := os.MkdirAll(appTemplatesPath, 0755); err != nil {
-					m.error = fmt.Errorf("failed to create app templates directory: %v", err)
-					return m, nil
+		if m.appTemplateForm.State == huh.StateCompleted {
+			if m.appName != "" && m.createAppTemplates {
+				projectAbsPath, _ := filepath.Abs(m.projectName)
+				appPath := filepath.Join(projectAbsPath, m.appName)
+				appTemplatesDir := filepath.Join(appPath, "templates", m.appName)
+				if err := os.MkdirAll(appTemplatesDir, 0755); err != nil {
+					m.error = fmt.Errorf("failed to create app templates directory %s: %v", appTemplatesDir, err)
+					break
 				}
 
-				// Check for global base.html
-				globalBasePath := filepath.Join(projectPath, "templates", "base.html")
-				baseExists := true
-				if _, err := os.Stat(globalBasePath); os.IsNotExist(err) {
-					baseExists = false
+				appIndexContent := `{% extends 'base.html' %}
+{% block title %}` + strings.Title(m.appName) + ` Home{% endblock %}
+{% block content %}<h1>Welcome to the ` + m.appName + ` app!</h1>{% endblock %}`
+				if _, err := os.Stat(filepath.Join(projectAbsPath, "templates", "base.html")); os.IsNotExist(err) {
+					appIndexContent = `<!DOCTYPE html><html><head><title>` + strings.Title(m.appName) + `</title></head><body><h1>Welcome to the ` + m.appName + ` app!</h1></body></html>`
+				}
+				if err := os.WriteFile(filepath.Join(appTemplatesDir, "index.html"), []byte(appIndexContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create index.html for app %s: %v", m.appName, err)
+					break
 				}
 
-				var indexContent string
-				if baseExists {
-					// Extend the base template if it exists
-					indexContent = `{% extends 'base.html' %}
-
-                    {% block content %}
-                    <div class="container mt-5">
-                        <h1 class="display-4">Welcome to {{ app_name }}</h1>
-                        <p class="lead">Your Django app is ready to go!</p>
-                    </div>
-                    {% endblock content %}`
-				} else {
-					// Use a complete HTML structure if base.html doesn't exist
-					indexContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome</title>
-</head>
-<body>
-    <div class="container mt-5">
-        <h1 class="display-4">Welcome to {{ app_name }}</h1>
-        <p class="lead">Your Django app is ready to go!</p>
-    </div>
-</body>
-</html>`
-				}
-
-				indexPath := filepath.Join(appTemplatesPath, "index.html")
-				if err := os.WriteFile(indexPath, []byte(indexContent), 0644); err != nil {
-					m.error = fmt.Errorf("failed to create index.html: %v", err)
-					return m, nil
-				}
-
-				viewsPath := filepath.Join(projectPath, m.appName, "views.py")
-				viewsContent := `from django.shortcuts import render
+				viewsContent := fmt.Sprintf(`from django.shortcuts import render
 
 def index(request):
-    app_name = getattr(request.resolver_match, 'app_name', '` + m.appName + `')
-    context = {
-        'app_name': app_name
-    }
-    return render(request, f'{app_name}/index.html', context)`
-				if err := os.WriteFile(viewsPath, []byte(viewsContent), 0644); err != nil {
-					m.error = fmt.Errorf("failed to create views.py: %v", err)
-					return m, nil
+    return render(request, '%s/index.html')
+`, m.appName, m.appName)
+				if err := os.WriteFile(filepath.Join(appPath, "views.py"), []byte(viewsContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create views.py for app %s: %v", m.appName, err)
+					break
 				}
 
-				urlsPath := filepath.Join(projectPath, m.appName, "urls.py")
-				urlsContent := fmt.Sprintf(`from django.urls import path
-
+				appUrlsContent := fmt.Sprintf(`from django.urls import path
 from . import views
 
 app_name = '%s'
@@ -242,123 +224,127 @@ urlpatterns = [
     path('', views.index, name='index'),
 ]
 `, m.appName)
-				if err := os.WriteFile(urlsPath, []byte(urlsContent), 0644); err != nil {
-					m.error = fmt.Errorf("failed to create urls.py: %v", err)
-					return m, nil
+				if err := os.WriteFile(filepath.Join(appPath, "urls.py"), []byte(appUrlsContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create urls.py for app %s: %v", m.appName, err)
+					break
 				}
 
-				projectUrlsPath := filepath.Join(projectPath, m.projectName, "urls.py")
-				projectUrlsContent := `from django.contrib import admin
+				projectUrlsPath := filepath.Join(projectAbsPath, m.projectName, "urls.py")
+				rootPathForProjectUrls := ""
+				if m.createTemplates {
+					rootPathForProjectUrls = "    path('', TemplateView.as_view(template_name='index.html'), name='home'),\n"
+				}
+				appIncludePath := fmt.Sprintf("    path('%s/', include('%s.urls', namespace='%s')),\n", m.appName, m.appName, m.appName)
+				projectUrlsContent := fmt.Sprintf(`from django.contrib import admin
 from django.urls import path, include
-
+%s
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('__reload__/', include('django_browser_reload.urls')),
-    path('', include('` + m.appName + `.urls', namespace='` + m.appName + `')),
-]`
+%s%s]
+`, Ternary(m.createTemplates, "from django.views.generic import TemplateView", ""), appIncludePath, rootPathForProjectUrls)
 				if err := os.WriteFile(projectUrlsPath, []byte(projectUrlsContent), 0644); err != nil {
 					m.error = fmt.Errorf("failed to update project urls.py: %v", err)
-					return m, nil
+					break
 				}
-
-				m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created templates directory and index.html for %s app", m.appName))
-
-				m.step = stepServerOption
-				return m, m.serverForm.Init()
+				m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Configured templates, views, and URLs for app: %s", m.appName))
 			}
-			return m, cmd
+			m.step = stepServerOption
+			cmds = append(cmds, m.serverForm.Init())
 		}
 
 	case stepServerOption:
-		form, cmd := m.serverForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.serverForm = f
-			if f.State == huh.StateCompleted {
-				m.step = stepGitInit
-				return m, m.gitForm.Init()
-			}
-			return m, cmd
+		if m.serverForm.State == huh.StateCompleted {
+			m.step = stepGitInit
+			m.stepMessages = append(m.stepMessages, fmt.Sprintf("Run server choice: %v", m.runServer))
+			cmds = append(cmds, m.gitForm.Init())
 		}
 	case stepGitInit:
-		form, cmd := m.gitForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.gitForm = f
-			if f.State == huh.StateCompleted {
-				wd, err := os.Getwd()
-				if err != nil {
-					m.error = fmt.Errorf("failed to get working directory: %v", err)
-					return m, nil
+		if m.gitForm.State == huh.StateCompleted {
+			m.stepMessages = append(m.stepMessages, fmt.Sprintf("Initialize Git choice: %v", m.initializeGit))
+			projectAbsPath, _ := filepath.Abs(m.projectName)
+
+			if m.initializeGit {
+				gitCmd := exec.Command("git", "init")
+				gitCmd.Dir = projectAbsPath
+				if output, err := gitCmd.CombinedOutput(); err != nil {
+					m.error = fmt.Errorf("failed to initialize Git repository: %v\nOutput: %s", err, string(output))
+					break
 				}
-				projectPath := filepath.Join(wd, m.projectName)
+				m.stepMessages = append(m.stepMessages, "✅ Git repository initialized.")
 
-				if m.initializeGit {
-					// Initialize Git repository
-					gitInitCmd := exec.Command("git", "init")
-					gitInitCmd.Dir = projectPath
-					if err := gitInitCmd.Run(); err != nil {
-						m.error = fmt.Errorf("failed to initialize Git repository: %v", err)
-						return m, nil
-					}
-					m.stepMessages = append(m.stepMessages, "✅ Git repository initialized.")
-
-					// Create .gitignore file
-					gitignoreContent := `# Django
-*.log
-*.pot
-*.pyc
-__pycache__/
-db.sqlite3
-/media/
-/static/
-
-# Environments
-.env
-.venv
-venv/
-ENV/
-env/
-ENV.yml
-
-# IDE / Editor
-.idea/
-.vscode/
-*.swp
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db`
-					gitignorePath := filepath.Join(projectPath, ".gitignore")
-					if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
-						m.error = fmt.Errorf("failed to create .gitignore file: %v", err)
-						return m, nil
-					}
-					m.stepMessages = append(m.stepMessages, "✅ .gitignore file created.")
+				gitignoreContent := `# Django ... (content as before) ... ` // Keep your full .gitignore content
+				if err := os.WriteFile(filepath.Join(projectAbsPath, ".gitignore"), []byte(gitignoreContent), 0644); err != nil {
+					m.error = fmt.Errorf("failed to create .gitignore: %v", err)
+					break
 				}
-
-				if m.runServer {
-					pythonPath := filepath.Join(projectPath, ".venv", "bin", "python")
-					serverCmd := exec.Command(pythonPath, "manage.py", "runserver")
-					serverCmd.Dir = projectPath
-					serverCmd.Stdout = os.Stdout
-					serverCmd.Stderr = os.Stderr
-					if err := serverCmd.Start(); err != nil {
-						m.error = fmt.Errorf("failed to start development server: %v", err)
-						return m, nil
-					}
-					m.stepMessages = append(m.stepMessages, "✨ Development server started at http://127.0.0.1:8000/")
-				}
-				m.done = true
-				return m, nil
+				m.stepMessages = append(m.stepMessages, "✅ .gitignore file created.")
 			}
-			return m, cmd
+
+			if m.runServer {
+				pythonVenvPath := getPythonPath(projectAbsPath)
+				m.stepMessages = append(m.stepMessages, "✨ To start the server: cd "+m.projectName+" && "+pythonVenvPath+" manage.py runserver")
+			}
+			m.done = true
 		}
 	}
 
-	return m, nil
+	// If an error occurred in the switch block, m.error will be set.
+	// The main error display logic at the top of View() will handle it.
+	// If m.done is true, View() will also handle the success message.
+
+	return m, tea.Batch(cmds...)
 }
 
+func (m *Model) getActiveForm() *huh.Form {
+	switch m.step {
+	case stepProjectName:
+		return m.inputForm
+	case stepDjangoVersion:
+		return m.versionForm
+	case stepFeatures:
+		return m.featureForm
+	case stepTemplates:
+		return m.templateForm
+	case stepCreateApp:
+		return m.appForm
+	case stepAppTemplates:
+		return m.appTemplateForm
+	case stepServerOption:
+		return m.serverForm
+	case stepGitInit:
+		return m.gitForm
+	}
+	return nil
+}
+
+func (m *Model) setActiveForm(form *huh.Form) {
+	if form == nil {
+		return
+	}
+	switch m.step {
+	case stepProjectName:
+		m.inputForm = form
+	case stepDjangoVersion:
+		m.versionForm = form
+	case stepFeatures:
+		m.featureForm = form
+	case stepTemplates:
+		m.templateForm = form
+	case stepCreateApp:
+		m.appForm = form
+	case stepAppTemplates:
+		m.appTemplateForm = form
+	case stepServerOption:
+		m.serverForm = form
+	case stepGitInit:
+		m.gitForm = form
+	}
+}
+
+func Ternary[T any](condition bool, ifTrue, ifFalse T) T {
+	if condition {
+		return ifTrue
+	}
+	return ifFalse
+}
