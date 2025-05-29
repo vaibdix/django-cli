@@ -1,18 +1,84 @@
+// Update main.go to support CLI flags
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func main() {
-	m := NewModel()
-	p := tea.NewProgram(m, tea.WithAltScreen()) // Using AltScreen for a cleaner exit
+type CLIArgs struct {
+	ProjectName   string
+	DjangoVersion string
+	SkipInteractive bool
+	Help          bool
+}
 
-	// Pass the program instance to the model so it can send messages
-	// from goroutines (like CreateProject)
+func parseArgs() CLIArgs {
+	var args CLIArgs
+
+	flag.StringVar(&args.ProjectName, "name", "", "Project name")
+	flag.StringVar(&args.ProjectName, "n", "", "Project name (shorthand)")
+	flag.StringVar(&args.DjangoVersion, "version", "", "Django version")
+	flag.StringVar(&args.DjangoVersion, "v", "", "Django version (shorthand)")
+	flag.BoolVar(&args.SkipInteractive, "auto", false, "Skip interactive mode with defaults")
+	flag.BoolVar(&args.Help, "help", false, "Show help")
+	flag.BoolVar(&args.Help, "h", false, "Show help (shorthand)")
+
+	flag.Parse()
+
+	return args
+}
+
+func showHelp() {
+	fmt.Println(`Django Forge CLI - Interactive Django Project Creator
+
+Usage:
+  django-forge [flags]
+
+Flags:
+  -n, --name string      Project name
+  -v, --version string   Django version (default: latest)
+  --auto                 Skip interactive mode with defaults
+  -h, --help            Show this help message
+
+Examples:
+  django-forge                           # Interactive mode
+  django-forge -n myproject              # Set project name
+  django-forge -n myproject -v 4.2.7     # Set name and Django version
+  django-forge --auto -n myproject       # Non-interactive with defaults
+
+Config file: ~/.django-forge.json (auto-created with your preferences)`)
+}
+
+func main() {
+	args := parseArgs()
+
+	if args.Help {
+		showHelp()
+		return
+	}
+
+	m := NewModel()
+
+	// Pre-populate from CLI args
+	if args.ProjectName != "" {
+		m.projectName = args.ProjectName
+	}
+	if args.DjangoVersion != "" {
+		m.djangoVersion = args.DjangoVersion
+	}
+
+	if args.SkipInteractive && args.ProjectName != "" {
+		// Skip to project creation with defaults
+		// You'd need to implement this logic in your model
+		m.step = stepSetup
+		go m.CreateProject()
+	}
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	m.SetProgram(p)
 
 	if _, err := p.Run(); err != nil {

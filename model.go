@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -12,31 +11,31 @@ import (
 )
 
 type Model struct {
-	step          step
-	projectName   string
+	step            step
+	projectName     string
 	djangoVersion string
-	features      []string // Currently only "vanilla"
-	spinner       spinner.Model
-	progress      progress.Model
-	progressStatus string
-	error         error
-	done          bool
+	features        []string // Currently only "vanilla"
+	spinner         spinner.Model
+	progress        progress.Model
+	progressStatus  string
+	error           error
+	done            bool
 
 	program *tea.Program
 
-	inputForm   *huh.Form
-	versionForm *huh.Form
-	featureForm *huh.Form
+	inputForm    *huh.Form
+	versionForm  *huh.Form
+	featureForm  *huh.Form
 	templateForm *huh.Form // For global templates
 
 	// For app creation and its templates
-	appNameInput      *huh.Input   // Store the input field for appName
-	appForm           *huh.Form    // Form that contains appNameInput
+	appNameInput      *huh.Input        // Store the input field for appName
+	appForm           *huh.Form         // Form that contains appNameInput
 	appTemplateSelect *huh.Select[bool] // Store the select field for app templates
-	appTemplateForm   *huh.Form    // Form that contains appTemplateSelect
+	appTemplateForm   *huh.Form         // Form that contains appTemplateSelect
 
-	serverForm  *huh.Form
-	gitForm     *huh.Form
+	serverForm *huh.Form
+	gitForm    *huh.Form
 
 	appName            string
 	createTemplates    bool // For global templates/static
@@ -60,7 +59,7 @@ func NewModel() *Model {
 	p := progress.New(
 		progress.WithGradient("#7D56F4", "#41E296"),
 		progress.WithWidth(50),
-		progress.WithoutPercentage(),
+		// Removed progress.WithoutPercentage() to enable percentage display
 	)
 
 	m := &Model{
@@ -69,10 +68,10 @@ func NewModel() *Model {
 		step:               stepSplashScreen,
 		splashCountdown:    3,
 		features:           []string{"vanilla"},
-		createTemplates:    true,
-		createAppTemplates: true,
-		runServer:          true,
-		initializeGit:      true,
+		createTemplates:    true, // Default to Yes
+		createAppTemplates: true, // Default to Yes
+		runServer:          true, // Default to Yes
+		initializeGit:      true, // Default to Yes
 		progressStatus:     "Initializing...",
 	}
 
@@ -89,12 +88,7 @@ func NewModel() *Model {
 				Title("Project name").
 				Description("Enter a name for your Django project").
 				Value(&m.projectName).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("project name cannot be empty")
-					}
-					return nil
-				}),
+				Validate(validateProjectName), // Use the validation function
 		),
 	).WithTheme(theme)
 
@@ -104,7 +98,8 @@ func NewModel() *Model {
 				Title("Django version").
 				Description("Press Enter to use default version (e.g., 5.2.0 or latest stable).").
 				Placeholder("latest").
-				Value(&m.djangoVersion),
+				Value(&m.djangoVersion).
+				Validate(validateDjangoVersion), // Use the validation function
 		),
 	).WithTheme(theme)
 
@@ -154,7 +149,6 @@ func NewModel() *Model {
 	m.appTemplateForm = huh.NewForm(
 		huh.NewGroup(m.appTemplateSelect),
 	).WithTheme(theme)
-
 
 	m.serverForm = huh.NewForm(
 		huh.NewGroup(

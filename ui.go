@@ -2,176 +2,172 @@ package main
 
 import (
 	"fmt"
-	"path/filepath" // Added import
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (m *Model) View() string {
-	// ===== COLOR PALETTE (Example) =====
-	primaryColor := lipgloss.Color("#7D56F4")
-	// secondaryColor := lipgloss.Color("#04B575")
-	accentColor := lipgloss.Color("#F25D94")
-	// bgColor := lipgloss.Color("#1A1B26")
-	textColor := lipgloss.Color("#FAFAFA")
-	headingColor := lipgloss.Color("#FFC44C")
-	successColor := lipgloss.Color("#73F991")
-	errorColor := lipgloss.Color("#F03E4D")
-	infoColor := lipgloss.Color("#61AFEF")
-	subtleColor := lipgloss.Color("#6C7086")
+var (
+	titleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Background(lipgloss.Color("#7D56F4")).
+			Padding(0, 1).
+			MarginBottom(1)
 
-	// Dynamic width for base style
+	subtitleStyle = lipgloss.NewStyle().
+			Italic(true).
+			Foreground(lipgloss.Color("#A0A0A0")).
+			MarginBottom(1)
+
+	errorStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("#FF0000")).
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Bold(true).
+			Padding(1, 2).
+			MarginBottom(1)
+
+	footerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888888")).
+			Italic(true).
+			MarginTop(1)
+
+	contentBox = lipgloss.NewStyle().
+			Padding(1, 2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#7D56F4")).
+			Background(lipgloss.Color("#1E1E1E"))
+)
+
+func (m *Model) View() string {
 	viewWidth := m.width
 	if viewWidth <= 0 {
-		viewWidth = 100 // Default width if not set
+		viewWidth = 100
 	}
-	// Ensure content area is slightly less than total view width for padding/margin
-	contentWidth := viewWidth - 4
-	if contentWidth < 50 {
-		contentWidth = 50
+	contentWidth := viewWidth - 8
+	if contentWidth < 70 {
+		contentWidth = 70
 	}
 
 	baseStyle := lipgloss.NewStyle().
-		Width(contentWidth). // Make width dynamic
-		Padding(1, 2)       // Consistent padding
-
-	headerStyle := lipgloss.NewStyle().
-		Foreground(headingColor).
-		Bold(true).
-		Padding(0, 1).
-		MarginBottom(1).
-		Border(lipgloss.RoundedBorder(), false, false, true, false). // Bottom border
-		BorderForeground(primaryColor).
-		Align(lipgloss.Center).Width(contentWidth - 4)
-
-	// Step indicator style
-	stepIndicatorStyle := lipgloss.NewStyle().
-		Foreground(accentColor).
-		Bold(true).
-		MarginBottom(1).
-		Padding(0, 1)
+		Width(contentWidth).
+		Padding(1, 4)
 
 	var s strings.Builder
 
+	// Error state
 	if m.error != nil {
-		errorStyled := lipgloss.NewStyle().
-			Foreground(errorColor).
-			Bold(true).
-			Border(lipgloss.DoubleBorder(), true).
-			BorderForeground(errorColor).
-			Padding(1, 2).
-			SetString(fmt.Sprintf("❌ ERROR: %s", m.error.Error())).String()
-		s.WriteString(errorStyled)
-		s.WriteString("\n\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(subtleColor).Render("Press Enter or Q to exit."))
+		errMsg := errorStyle.Render(fmt.Sprintf("❌ ERROR: %s", m.error.Error()))
+		s.WriteString(errMsg + "\n\n")
+		s.WriteString("Press Enter or Q to exit.")
 		return baseStyle.Render(s.String())
 	}
 
+	// Done state
 	if m.done {
-		successMsg := "✅ Django project setup complete!\n\n"
-		successMsg += "What's next:\n"
-		successMsg += fmt.Sprintf("  1. Navigate to your project: cd %s\n", m.projectName)
-		if !m.runServer { // Only show this if server wasn't "auto-started" (or rather, if we didn't give the command)
-			projectAbsPath, _ := filepath.Abs(m.projectName) // Used filepath
-			pythonVenvPath := getPythonPath(projectAbsPath)
-			successMsg += fmt.Sprintf("  2. Start the development server: %s manage.py runserver\n", pythonVenvPath)
+		s.WriteString(titleStyle.Render("✅ Django Project Setup Complete!") + "\n\n")
+		s.WriteString(subtitleStyle.Render("What's Next:") + "\n")
+		s.WriteString(fmt.Sprintf("1. Navigate to your project directory:\n   cd %s\n\n", m.projectName))
+
+		projectAbsPath, _ := filepath.Abs(m.projectName)
+		pythonVenvPath := getPythonPath(projectAbsPath)
+		if !m.runServer {
+			s.WriteString(fmt.Sprintf("2. Start the development server:\n   %s manage.py runserver\n\n", pythonVenvPath))
 		} else {
-			projectAbsPath, _ := filepath.Abs(m.projectName) // Used filepath
-			pythonVenvPath := getPythonPath(projectAbsPath)
-			successMsg += fmt.Sprintf("  2. If you chose to run the server, it might be starting or use: %s manage.py runserver\n", pythonVenvPath)
+			s.WriteString(fmt.Sprintf("2. If the server is not running, start it with:\n   %s manage.py runserver\n\n", pythonVenvPath))
 		}
 
-		successStyled := lipgloss.NewStyle().
-			Foreground(successColor).
-			Border(lipgloss.RoundedBorder(), true).
-			BorderForeground(successColor).
-			Padding(1, 2).
-			SetString(successMsg).String()
-		s.WriteString(successStyled)
-		s.WriteString("\n\n")
-		// Display step messages for review
-		s.WriteString("Log:\n")
+		s.WriteString(subtitleStyle.Render("Detailed Setup Log:") + "\n")
 		for _, msg := range m.stepMessages {
-			s.WriteString(lipgloss.NewStyle().Foreground(subtleColor).Render("  "+msg) + "\n")
+			if strings.HasPrefix(msg, "✓") || strings.HasPrefix(msg, "PROGRESS") {
+				s.WriteString(fmt.Sprintf("✓ %s\n", strings.TrimPrefix(msg, "✓ ")))
+			} else if strings.HasPrefix(msg, "•") || strings.HasPrefix(msg, "  •") {
+				s.WriteString(fmt.Sprintf("%s\n", msg))
+			} else if strings.HasPrefix(msg, "To start the server:") {
+				s.WriteString(fmt.Sprintf("\n%s\n", msg))
+			} else {
+				s.WriteString(fmt.Sprintf("• %s\n", msg))
+			}
 		}
-		s.WriteString("\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(subtleColor).Render("Press Enter or Q to exit."))
+
+		s.WriteString("\n" + footerStyle.Render("Press Enter or Q to exit."))
 		return baseStyle.Render(s.String())
 	}
 
-	// Splash Screen
+	// Splash screen
 	if m.step == stepSplashScreen {
 		djangoDisplayVersion := m.djangoVersion
 		if djangoDisplayVersion == "" || djangoDisplayVersion == "latest" {
-			djangoDisplayVersion = "latest stable" // Default display
+			djangoDisplayVersion = "latest stable"
 		}
-		splashTitle := headerStyle.Render("🚀 Django Forge CLI 🚀")
-		welcome := fmt.Sprintf("Welcome! Initializing Django project creator with Django %s.", djangoDisplayVersion)
-		countdown := fmt.Sprintf("\nStarting in %d seconds...", m.splashCountdown)
-		s.WriteString(splashTitle + "\n\n")
-		s.WriteString(lipgloss.NewStyle().Foreground(infoColor).Render(welcome))
-		s.WriteString(lipgloss.NewStyle().Foreground(textColor).Render(countdown))
+		s.WriteString(titleStyle.Render("🚀 Django Forge CLI 🚀") + "\n\n")
+		s.WriteString(fmt.Sprintf("Welcome! Initializing Django project creator with Django %s.\n", djangoDisplayVersion))
+		s.WriteString(fmt.Sprintf("Starting in %d seconds...\n\n", m.splashCountdown))
+		s.WriteString(subtitleStyle.Render("Crafting your Django project, one step at a time."))
 		return baseStyle.Render(s.String())
 	}
 
-	// Main content area for forms and setup progress
-	var currentStepPrimaryContent string
-	activeForm := m.getActiveForm() // Get the form for the current step
+	// Main content area
+	activeForm := m.getActiveForm()
 
 	switch m.step {
 	case stepSetup:
-		title := headerStyle.Render("🚧 Project Initialization 🚧")
-		status := lipgloss.NewStyle().Foreground(infoColor).Render(m.progressStatus)
-		progressView := m.progress.View()
+		s.WriteString(titleStyle.Render("🚧 Project Initialization 🚧") + "\n\n")
+		s.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), m.progressStatus))
+		m.progress.Width = contentWidth - 8
+		s.WriteString(m.progress.View())
 
-		s.WriteString(title + "\n\n")
-		s.WriteString(m.spinner.View() + " " + status + "\n\n")
-		s.WriteString(progressView)
-		currentStepPrimaryContent = s.String() // Use the builder directly
-
-	default: // For all form steps
+	default:
 		if activeForm != nil {
-			// Render step indicator if available for the form
-			var stepTitle string
+			var stepTitle, stepDescription string
 			switch m.step {
 			case stepProjectName:
 				stepTitle = "Step 1: Project Name"
+				stepDescription = "Enter a memorable name for your new Django project."
 			case stepDjangoVersion:
 				stepTitle = "Step 2: Django Version"
+				stepDescription = "Choose the Django version for your project. 'latest' is recommended."
 			case stepFeatures:
 				stepTitle = "Step 3: Setup Type"
+				stepDescription = "Select a setup type to include common project structures."
 			case stepTemplates:
 				stepTitle = "Step 4: Global Templates"
+				stepDescription = "Include standard global template directories (e.g., 'templates')?"
 			case stepCreateApp:
 				stepTitle = "Optional: Create App"
+				stepDescription = "Do you want to create an initial Django app within your project?"
 			case stepAppTemplates:
 				stepTitle = fmt.Sprintf("Optional: App Templates for '%s'", m.appName)
+				stepDescription = "Include standard template directories for your app (e.g., 'templates/<app_name>')?"
 			case stepServerOption:
 				stepTitle = "Optional: Development Server"
+				stepDescription = "Automatically start the Django development server after setup?"
 			case stepGitInit:
 				stepTitle = "Optional: Git Repository"
+				stepDescription = "Initialize a Git repository for version control?"
 			}
+
 			if stepTitle != "" {
-				s.WriteString(stepIndicatorStyle.Render(stepTitle) + "\n")
+				s.WriteString(titleStyle.Render(stepTitle) + "\n")
+				s.WriteString(subtitleStyle.Render(stepDescription) + "\n\n")
 			}
 			s.WriteString(activeForm.View())
-			currentStepPrimaryContent = s.String()
-		} else {
-			currentStepPrimaryContent = "Unknown step or no active form."
 		}
 	}
 
-	// Footer with quit message
-	quitHelp := "\n\n" + lipgloss.NewStyle().Foreground(subtleColor).Render("Press 'q' or 'Ctrl+C' to quit.")
+	quitHelp := footerStyle.Render("Press 'q' or 'Ctrl+C' to quit.")
 
-	// For form steps, add navigation help
-	if activeForm != nil && m.step != stepSetup {
-		navHelp := lipgloss.NewStyle().Foreground(subtleColor).Italic(true).Render(
-			"Navigate: [↑/↓] or [Tab/Shift+Tab]  |  Select/Confirm: [Enter]  |  Change field: [←/→] for some inputs",
-		)
-		return baseStyle.Render(currentStepPrimaryContent + "\n\n" + navHelp + quitHelp)
+	var navHelp string
+	if activeForm != nil && m.step != stepSetup && m.step != stepSplashScreen {
+		navHelp = footerStyle.Render("Navigate: ↑/↓ or Tab/Shift+Tab  |  Select: Enter  |  Change: ←/→")
 	}
 
-	return baseStyle.Render(currentStepPrimaryContent + quitHelp)
+	s.WriteString("\n")
+	if navHelp != "" {
+		s.WriteString(navHelp + "\n")
+	}
+	s.WriteString(quitHelp)
+
+	return contentBox.Width(contentWidth).Render(s.String())
 }

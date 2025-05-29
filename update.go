@@ -37,6 +37,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		// Adjust progress bar width dynamically
 		m.progress.Width = msg.Width / 2
 		if m.progress.Width < 10 {
 			m.progress.Width = 10
@@ -57,9 +58,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}))
 			}
 		}
-		// This return was missing, causing fallthrough if not in splash screen step
 		return m, tea.Batch(cmds...)
-
 
 	case projectProgressMsg:
 		if m.step == stepSetup {
@@ -79,37 +78,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.progress.SetPercent(1.0)
 			m.progressStatus = "Django project core setup complete!"
 			m.stepMessages = append(m.stepMessages, "✅ Django project core setup complete!")
-
-			// Decide next step AFTER CreateProject is done
-			// Now m.appName would have been set by the appForm if user entered it before this flow.
-			// The original logic of showing appForm only if appName is empty is actually good.
-			// Let's re-evaluate the step transition:
-			// From stepSetup -> we go to stepCreateApp to *ask* for appName
 			m.step = stepCreateApp
 			cmds = append(cmds, m.appForm.Init())
-
 		}
 		return m, tea.Batch(cmds...)
 	}
 
-	// Handle active form updates (including key presses if not handled above)
 	activeForm := m.getActiveForm()
 	if activeForm != nil {
-		// Only update the form if it's not completed and not blurred (though blurring isn't a major factor in this single-form-at-a-time flow)
-		// The main check is for completion before processing its submission.
-		if activeForm.State != huh.StateCompleted && !activeForm.Blurred() {
+		if activeForm.State != huh.StateCompleted {
 			formModel, formCmd := activeForm.Update(msg)
 			if castedForm, ok := formModel.(*huh.Form); ok {
 				m.setActiveForm(castedForm)
-			} else if formModel != nil { // It could be a different tea.Model if huh changes its API
-				// Potentially handle error or unexpected model type
 			}
 			cmds = append(cmds, formCmd)
 		}
 	}
 
-
-	// Handle form submissions and state transitions based on m.step and form state
 	switch m.step {
 	case stepProjectName:
 		if m.inputForm.State == huh.StateCompleted {
@@ -141,7 +126,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.spinner.Tick)
 		}
 
-	case stepCreateApp: // This step is after core project setup is done
+	case stepCreateApp:
 		if m.appForm.State == huh.StateCompleted {
 			if m.appName != "" {
 				projectAbsPath, err := filepath.Abs(m.projectName)
@@ -206,11 +191,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 
+				// Fixed viewsContent with correct formatting
 				viewsContent := fmt.Sprintf(`from django.shortcuts import render
 
 def index(request):
     return render(request, '%s/index.html')
-`, m.appName, m.appName)
+`, m.appName)
+
 				if err := os.WriteFile(filepath.Join(appPath, "views.py"), []byte(viewsContent), 0644); err != nil {
 					m.error = fmt.Errorf("failed to create views.py for app %s: %v", m.appName, err)
 					break
@@ -273,7 +260,31 @@ urlpatterns = [
 				}
 				m.stepMessages = append(m.stepMessages, "✅ Git repository initialized.")
 
-				gitignoreContent := `# Django ... (content as before) ... ` // Keep your full .gitignore content
+				gitignoreContent := `# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+`
 				if err := os.WriteFile(filepath.Join(projectAbsPath, ".gitignore"), []byte(gitignoreContent), 0644); err != nil {
 					m.error = fmt.Errorf("failed to create .gitignore: %v", err)
 					break
@@ -288,11 +299,6 @@ urlpatterns = [
 			m.done = true
 		}
 	}
-
-	// If an error occurred in the switch block, m.error will be set.
-	// The main error display logic at the top of View() will handle it.
-	// If m.done is true, View() will also handle the success message.
-
 	return m, tea.Batch(cmds...)
 }
 

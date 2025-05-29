@@ -6,16 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	// "time" // Not needed if progress is discrete
 )
 
 func (m *Model) CreateProject() {
-	// This function will now send messages via m.program.Send()
-	// instead of returning an error or writing to m.error directly in this goroutine.
 	var currentErr error
 	defer func() {
 		if m.program != nil {
-			// Send finalization message
 			m.program.Send(projectCreationDoneMsg{err: currentErr})
 		}
 	}()
@@ -24,6 +20,7 @@ func (m *Model) CreateProject() {
 		currentErr = fmt.Errorf("project name cannot be empty")
 		return
 	}
+
 	projectPath := m.projectName // Relative path for now
 	if !filepath.IsAbs(projectPath) {
 		wd, err := os.Getwd()
@@ -41,7 +38,7 @@ func (m *Model) CreateProject() {
 	}
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Project directory created: %s", projectPath))
 	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.1, status: "Project directory created."})
+		m.program.Send(projectProgressMsg{percent: 0.05, status: "Creating project directory..."})
 	}
 
 	// Create virtual environment
@@ -67,20 +64,16 @@ func (m *Model) CreateProject() {
 	}
 	m.stepMessages = append(m.stepMessages, "Virtual environment created.")
 	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.25, status: "Virtual environment created."})
+		m.program.Send(projectProgressMsg{percent: 0.15, status: "Virtual environment created."})
 	}
 
 	// Install Django and django-browser-reload
 	djangoInstallVersion := m.djangoVersion
 	if djangoInstallVersion == "" || djangoInstallVersion == "latest" {
-		// Fetch latest stable Django version here if desired, or use a fixed recent one.
-		// For now, let Django/pip decide "latest" or use a default.
-		// If you specify no version, pip installs the latest.
-		// For explicit default:
 		djangoInstallVersion = "Django" // Pip will get latest
 		if m.djangoVersion != "" && m.djangoVersion != "latest" { // User specified a version
-		    djangoInstallVersion = "Django==" + m.djangoVersion
-        }
+			djangoInstallVersion = "Django==" + m.djangoVersion
+		}
 	} else {
 		djangoInstallVersion = "Django==" + djangoInstallVersion
 	}
@@ -102,7 +95,7 @@ func (m *Model) CreateProject() {
 	}
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Django and django-browser-reload installed using %s.", pipTool))
 	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.5, status: "Django and dependencies installed."})
+		m.program.Send(projectProgressMsg{percent: 0.35, status: "Installing Django and dependencies..."})
 	}
 
 	// Create Django project
@@ -115,7 +108,7 @@ func (m *Model) CreateProject() {
 	}
 	m.stepMessages = append(m.stepMessages, "Django project created.")
 	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.7, status: "Django project structure created."})
+		m.program.Send(projectProgressMsg{percent: 0.55, status: "Creating Django project structure..."})
 	}
 
 	// Modify settings.py
@@ -134,6 +127,9 @@ func (m *Model) CreateProject() {
 		return
 	}
 	m.stepMessages = append(m.stepMessages, "✅ Added django-browser-reload to INSTALLED_APPS.")
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.65, status: "Configuring settings.py..."})
+	}
 
 	// Add django_browser_reload.middleware.BrowserReloadMiddleware to MIDDLEWARE
 	settingsContent, err = addToListInSettingsPy(settingsContent, "MIDDLEWARE", "django_browser_reload.middleware.BrowserReloadMiddleware")
@@ -142,6 +138,9 @@ func (m *Model) CreateProject() {
 		return
 	}
 	m.stepMessages = append(m.stepMessages, "✅ Added django-browser-reload middleware.")
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: 0.75, status: "Configuring middleware..."})
+	}
 
 	// Configure templates and static files if chosen
 	if m.createTemplates {
@@ -207,9 +206,11 @@ func (m *Model) CreateProject() {
 			return
 		}
 		m.stepMessages = append(m.stepMessages, "✅ Created global templates and static files.")
+		if m.program != nil {
+			m.program.Send(projectProgressMsg{percent: 0.85, status: "Setting up global templates and static files..."})
+		}
 
 		// Update DIRS in TEMPLATES setting
-		// This is a simplified replacement. A more robust method would parse the TEMPLATES structure.
 		templatesDirsSetting := "'DIRS': [BASE_DIR / 'templates']"
 		if !strings.Contains(settingsContent, templatesDirsSetting) {
 			settingsContent = strings.Replace(settingsContent, "'DIRS': []", templatesDirsSetting, 1)
@@ -225,7 +226,7 @@ func (m *Model) CreateProject() {
 				// Find end of that line
 				lineEndIdx := strings.Index(settingsContent[idx:], "\n")
 				if lineEndIdx != -1 {
-					insertPos := idx + lineEndIdx +1
+					insertPos := idx + lineEndIdx + 1
 					settingsContent = settingsContent[:insertPos] + "\n" + staticfilesDirsSetting + "\n" + settingsContent[insertPos:]
 				} else { // STATIC_URL is the last line
 					settingsContent += "\n\n" + staticfilesDirsSetting + "\n"
@@ -243,7 +244,7 @@ func (m *Model) CreateProject() {
 		return
 	}
 	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.9, status: "Settings configured."})
+		m.program.Send(projectProgressMsg{percent: 0.95, status: "Finalizing settings configuration..."})
 	}
 
 	m.stepMessages = append(m.stepMessages, "✅ Django project core setup finished!")
