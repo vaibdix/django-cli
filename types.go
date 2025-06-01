@@ -1,6 +1,7 @@
 package main
 type step int
 
+
 const (
 	stepSplashScreen = iota
 	stepProjectName

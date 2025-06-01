@@ -4,8 +4,15 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+)
+
+const (
+	padding  = 2
+	maxWidth = 80
 )
 
 var (
@@ -38,7 +45,15 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#7D56F4")).
 			Background(lipgloss.Color("#1E1E1E"))
+
+	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 )
+
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
+		return tickMsg{}
+	})
+}
 
 func (m *Model) View() string {
 	viewWidth := m.width
@@ -115,43 +130,27 @@ func (m *Model) View() string {
 	case stepSetup:
 		s.WriteString(titleStyle.Render("🚧 Project Initialization 🚧") + "\n\n")
 		s.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), m.progressStatus))
+		
+		// Enhanced animated progress bar
 		m.progress.Width = contentWidth - 8
-		s.WriteString(m.progress.View())
+		if m.progress.Width > maxWidth {
+			m.progress.Width = maxWidth
+		}
+		if m.progress.Width < 20 {
+			m.progress.Width = 20
+		}
+		
+		pad := strings.Repeat(" ", padding)
+		s.WriteString("\n" + pad + m.progress.View() + "\n\n")
+		
+		// Show percentage
+		percentage := int(m.progress.Percent() * 100)
+		s.WriteString(pad + fmt.Sprintf("Progress: %d%%\n", percentage))
 
-	default:
+	case stepProjectName:
 		if activeForm != nil {
-			var stepTitle, stepDescription string
-			switch m.step {
-			case stepProjectName:
-				stepTitle = "Step 1: Project Name"
-				stepDescription = "Enter a memorable name for your new Django project."
-			case stepDjangoVersion:
-				stepTitle = "Step 2: Django Version"
-				stepDescription = "Choose the Django version for your project. 'latest' is recommended."
-			case stepFeatures:
-				stepTitle = "Step 3: Setup Type"
-				stepDescription = "Select a setup type to include common project structures."
-			case stepTemplates:
-				stepTitle = "Step 4: Global Templates"
-				stepDescription = "Include standard global template directories (e.g., 'templates')?"
-			case stepCreateApp:
-				stepTitle = "Optional: Create App"
-				stepDescription = "Do you want to create an initial Django app within your project?"
-			case stepAppTemplates:
-				stepTitle = fmt.Sprintf("Optional: App Templates for '%s'", m.appName)
-				stepDescription = "Include standard template directories for your app (e.g., 'templates/<app_name>')?"
-			case stepServerOption:
-				stepTitle = "Optional: Development Server"
-				stepDescription = "Automatically start the Django development server after setup?"
-			case stepGitInit:
-				stepTitle = "Optional: Git Repository"
-				stepDescription = "Initialize a Git repository for version control?"
-			}
-
-			if stepTitle != "" {
-				s.WriteString(titleStyle.Render(stepTitle) + "\n")
-				s.WriteString(subtitleStyle.Render(stepDescription) + "\n\n")
-			}
+			s.WriteString(titleStyle.Render("🚀 Django Project Configuration") + "\n")
+			s.WriteString(subtitleStyle.Render("Configure your Django project with all options in one place") + "\n\n")
 			s.WriteString(activeForm.View())
 		}
 	}
@@ -159,8 +158,8 @@ func (m *Model) View() string {
 	quitHelp := footerStyle.Render("Press 'q' or 'Ctrl+C' to quit.")
 
 	var navHelp string
-	if activeForm != nil && m.step != stepSetup && m.step != stepSplashScreen {
-		navHelp = footerStyle.Render("Navigate: ↑/↓ or Tab/Shift+Tab  |  Select: Enter  |  Change: ←/→")
+	if activeForm != nil && m.step == stepProjectName {
+		navHelp = footerStyle.Render("Navigate: ↑/↓ or Tab/Shift+Tab  |  Select: Space/Enter  |  Submit: Enter")
 	}
 
 	s.WriteString("\n")
