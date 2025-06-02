@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -386,10 +387,118 @@ Thumbs.db
 		m.stepMessages = append(m.stepMessages, "✅ .gitignore file created.")
 	}
 
+	// Setup Tailwind CSS v4 if selected
+	if m.setupTailwind {
+		if m.program != nil {
+			m.program.Send(projectProgressMsg{percent: 0.90, status: "Setting up Tailwind CSS v4..."})
+		}
+
+		// Check if Node.js is available
+		if !isCommandAvailable("npm") {
+			m.stepMessages = append(m.stepMessages, "⚠️  Warning: npm not found. Please install Node.js to use Tailwind CSS.")
+		} else {
+			// Initialize npm
+			cmd := exec.Command("npm", "init", "-y")
+			cmd.Dir = projectPath
+			if output, err := cmd.CombinedOutput(); err != nil {
+				m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to initialize npm: %v\nOutput: %s", err, string(output)))
+			} else {
+				m.stepMessages = append(m.stepMessages, "✅ npm initialized.")
+
+				// Install Tailwind CSS v4
+				cmd = exec.Command("npm", "install", "--save-dev", "tailwindcss", "@tailwindcss/cli")
+				cmd.Dir = projectPath
+				if output, err := cmd.CombinedOutput(); err != nil {
+					m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to install Tailwind CSS: %v\nOutput: %s", err, string(output)))
+				} else {
+					m.stepMessages = append(m.stepMessages, "✅ Tailwind CSS v4 installed.")
+
+					// Create static/src directory structure
+					staticSrcPath := filepath.Join(projectPath, "static", "src")
+					staticDistPath := filepath.Join(projectPath, "static", "dist")
+					if err := os.MkdirAll(staticSrcPath, 0755); err != nil {
+						m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to create static/src directory: %v", err))
+					} else if err := os.MkdirAll(staticDistPath, 0755); err != nil {
+						m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to create static/dist directory: %v", err))
+					} else {
+						m.stepMessages = append(m.stepMessages, "✅ Tailwind directory structure created.")
+
+						// Create source CSS file
+						tailwindCSS := `@import "tailwindcss";`
+						if err := os.WriteFile(filepath.Join(staticSrcPath, "styles.css"), []byte(tailwindCSS), 0644); err != nil {
+							m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to create styles.css: %v", err))
+						} else {
+							m.stepMessages = append(m.stepMessages, "✅ Tailwind source CSS created.")
+
+							// Update package.json with build scripts
+							packageJSONPath := filepath.Join(projectPath, "package.json")
+							if packageData, err := os.ReadFile(packageJSONPath); err != nil {
+								m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to read package.json: %v", err))
+							} else {
+								// Parse and update package.json
+								var packageJSON map[string]interface{}
+								if err := json.Unmarshal(packageData, &packageJSON); err != nil {
+									m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to parse package.json: %v", err))
+								} else {
+									// Add scripts
+									scripts := map[string]interface{}{
+										"build:css": fmt.Sprintf("tailwindcss -i ./static/src/styles.css -o ./static/dist/styles.css"),
+										"watch:css": fmt.Sprintf("tailwindcss -i ./static/src/styles.css -o ./static/dist/styles.css --watch"),
+									}
+									packageJSON["scripts"] = scripts
+
+									// Write updated package.json
+									if updatedData, err := json.MarshalIndent(packageJSON, "", "  "); err != nil {
+										m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to marshal package.json: %v", err))
+									} else if err := os.WriteFile(packageJSONPath, updatedData, 0644); err != nil {
+										m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to write package.json: %v", err))
+									} else {
+										m.stepMessages = append(m.stepMessages, "✅ package.json updated with Tailwind scripts.")
+
+										// Update base.html template to include Tailwind CSS
+										if m.createTemplates {
+											baseTemplatePath := filepath.Join(projectPath, "templates", "base.html")
+											if baseContent, err := os.ReadFile(baseTemplatePath); err != nil {
+												m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to read base.html: %v", err))
+											} else {
+												// Replace the CSS link with Tailwind CSS
+												updatedBaseContent := strings.Replace(string(baseContent), 
+													`<link rel="stylesheet" href="{% static 'css/style.css' %}">`,
+													`<link rel="stylesheet" href="{% static 'dist/styles.css' %}">`, 1)
+												if err := os.WriteFile(baseTemplatePath, []byte(updatedBaseContent), 0644); err != nil {
+													m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to update base.html: %v", err))
+												} else {
+													m.stepMessages = append(m.stepMessages, "✅ base.html updated to use Tailwind CSS.")
+												}
+											}
+										}
+
+										// Build initial CSS
+										cmd = exec.Command("npm", "run", "build:css")
+										cmd.Dir = projectPath
+										if output, err := cmd.CombinedOutput(); err != nil {
+											m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to build Tailwind CSS: %v\nOutput: %s", err, string(output)))
+										} else {
+											m.stepMessages = append(m.stepMessages, "✅ Tailwind CSS compiled successfully.")
+											m.stepMessages = append(m.stepMessages, "💡 Run 'npm run watch:css' for development or 'npm run build:css' for production.")
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Handle server startup if selected
 	if m.runServer {
 		pythonVenvPath := getPythonPath(projectPath)
 		m.stepMessages = append(m.stepMessages, "✨ To start the server: cd "+m.projectName+" && "+pythonVenvPath+" manage.py runserver")
+		if m.setupTailwind {
+			m.stepMessages = append(m.stepMessages, "✨ To watch Tailwind CSS: cd "+m.projectName+" && npm run watch:css")
+		}
 	}
 
 	m.stepMessages = append(m.stepMessages, "✅ Django project setup complete!")

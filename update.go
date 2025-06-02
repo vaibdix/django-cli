@@ -132,6 +132,7 @@ func (m *Model) processFormData() {
 	m.createAppTemplates = contains(m.selectedOptions, "App Templates")
 	m.runServer = contains(m.selectedOptions, "Run Server")
 	m.initializeGit = contains(m.selectedOptions, "Initialize Git")
+	m.setupTailwind = contains(m.selectedOptions, "Tailwind")
 
 	// Log selections
 	m.stepMessages = append(m.stepMessages, "Project name: "+m.projectName)

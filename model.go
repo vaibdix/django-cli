@@ -33,6 +33,7 @@ type Model struct {
 	createAppTemplates bool // For app-specific templates
 	runServer         bool
 	initializeGit     bool
+	setupTailwind     bool // For Tailwind CSS v4 setup
 
 	stepMessages    []string
 	splashCountdown int
@@ -107,8 +108,9 @@ func NewModel() *Model {
 					huh.NewOption("App Templates (if creating an app)", "App Templates").Selected(true),
 					huh.NewOption("Auto-start Development Server", "Run Server").Selected(true),
 					huh.NewOption("Initialize Git Repository", "Initialize Git").Selected(true),
+					huh.NewOption("Vanilla + Tailwind CSS v4", "Tailwind"),
 				).
-				Limit(4).
+				Limit(5).
 				Value(&m.selectedOptions),
 		),
 	).WithTheme(theme)
