@@ -2,10 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0] - 2025-06-02
 
-## [0.1.0] - 2024-02-13
+### Added
+
+-   Cross-platform build support for Windows, macOS, and Linux
+-   Comprehensive README.md documentation with detailed usage instructions
+-   Configuration file support at `~/.django-forge.json` for setting defaults
+-   Command-line argument support with flags (`-n`, `-v`, `--auto`, `--help`)
+-   Non-interactive mode with `--auto` flag for automated project creation
+
+### Improved
+
+-   Enhanced user interface with better color schemes and styling
+-   Optimized progress bar animation and immediate visual feedback
+-   Better error handling and validation messages
+-   Improved form styling with custom placeholder colors
+-   Streamlined project creation flow without blank screens
+
+### Fixed
+
+-   Resolved compilation errors when building for different platforms
+-   Fixed blank screen issue after project configuration selection
+-   Corrected placeholder text color overlapping issues
+-   Improved theme configuration for better visual consistency
+
+### Technical
+
+-   Updated build process with proper cross-compilation support
+-   Enhanced Go module dependencies and version management
+-   Improved code organization and documentation
+-   Added comprehensive troubleshooting guide
+
+## [0.1.0] - 2025-05-03
 
 ### Added
 
