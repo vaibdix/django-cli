@@ -287,7 +287,7 @@ func (m *Model) CreateProject() {
 
 			appIndexContent := `{% extends 'base.html' %}
 {% block title %}` + strings.Title(m.appName) + ` Home{% endblock %}
-{% block content %}<h1>Welcome to the ` + m.appName + ` app!</h1>{% endblock %}`
+{% block content %}<h1>Welcome to the ` + m.appName + `</h1>{% endblock %}`
 			if _, err := os.Stat(filepath.Join(projectPath, "templates", "base.html")); os.IsNotExist(err) {
 				appIndexContent = `<!DOCTYPE html><html><head><title>` + strings.Title(m.appName) + `</title></head><body><h1>Welcome to the ` + m.appName + ` app!</h1></body></html>`
 			}
@@ -406,7 +406,7 @@ Thumbs.db
 				m.stepMessages = append(m.stepMessages, "✅ npm initialized.")
 
 				// Install Tailwind CSS v4
-				cmd = exec.Command("npm", "install", "--save-dev", "tailwindcss", "@tailwindcss/cli")
+				cmd = exec.Command("npm", "install", "tailwindcss", "@tailwindcss/cli")
 				cmd.Dir = projectPath
 				if output, err := cmd.CombinedOutput(); err != nil {
 					m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to install Tailwind CSS: %v\nOutput: %s", err, string(output)))
@@ -442,8 +442,8 @@ Thumbs.db
 								} else {
 									// Add scripts
 									scripts := map[string]interface{}{
-										"build:css": fmt.Sprintf("tailwindcss -i ./static/src/styles.css -o ./static/dist/styles.css"),
-										"watch:css": fmt.Sprintf("tailwindcss -i ./static/src/styles.css -o ./static/dist/styles.css --watch"),
+										"build:css": fmt.Sprintf("npx tailwindcss -i ./static/src/styles.css -o ./static/dist/styles.css"),
+										"watch:css": fmt.Sprintf("npx tailwindcss -i ./static/src/styles.css -o ./static/dist/styles.css --watch"),
 									}
 									packageJSON["scripts"] = scripts
 
