@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+-   Dynamic progress bar based on actual completed steps
 -   Cross-platform build support for Windows, macOS, and Linux
 -   Comprehensive README.md documentation with detailed usage instructions
 -   Configuration file support at `~/.django-forge.json` for setting defaults
@@ -14,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Improved
 
+-   Progress bar now accurately reflects project creation progress
 -   Enhanced user interface with better color schemes and styling
 -   Optimized progress bar animation and immediate visual feedback
 -   Better error handling and validation messages

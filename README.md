@@ -4,6 +4,8 @@ An interactive command-line tool for creating Django projects with modern develo
 
 ## Features
 
+-   **Dynamic Progress Bar**: Provides real-time feedback on the project setup progress, adapting to the selected features and steps.
+
 ### 🎯 Interactive Project Setup
 
 -   **Project Name Validation**: Ensures valid project names and prevents conflicts
@@ -32,6 +34,7 @@ An interactive command-line tool for creating Django projects with modern develo
 
 ### 🎨 User Experience
 
+-   **Dynamic Progress Bar**: Accurately tracks and displays project creation progress based on selected features and completed steps.
 -   **Animated Progress Bar**: Visual feedback during project creation
 -   **Splash Screen**: Welcome screen with countdown
 -   **Error Handling**: Comprehensive validation and error messages
