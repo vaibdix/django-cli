@@ -10,38 +10,61 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-
-
 type Model struct {
-	step            step
-	projectName     string
-	djangoVersion   string
-	features        []string // Currently only "vanilla"
-	spinner         spinner.Model
-	progress        progress.Model
-	progressStatus  string
-	error           error
-	done            bool
+	step               step
+	projectName        string
+	djangoVersion      string
+	features           []string
+	spinner            spinner.Model
+	progress           progress.Model
+	progressStatus     string
+	error              error
+	done               bool
+	program            *tea.Program
+	mainForm           *huh.Form
+	devServerForm      *huh.Form
+	selectedOptions    []string
+	appName            string
+	createTemplates    bool
+	createAppTemplates bool
+	runServer          bool
+	initializeGit      bool
+	setupTailwind      bool
+	startDevServer     bool
+	stepMessages       []string
+	splashCountdown    int
+	width              int
+	totalSteps         int
+	completedSteps     int
+}
 
-	program *tea.Program
+func (m *Model) calculateTotalSteps() int {
+	// Base steps: project dir, venv, django, settings
+	totalSteps := 4
 
-	// Single comprehensive form
-	mainForm *huh.Form
-	devServerForm *huh.Form
+	// Optional features
+	if m.createTemplates {
+		totalSteps++
+	}
+	if m.appName != "" {
+		totalSteps++
+	}
+	if m.initializeGit {
+		totalSteps++
+	}
+	if m.setupTailwind {
+		totalSteps++
+	}
 
-	// Configuration options
-	selectedOptions   []string // For multiselect
-	appName           string
-	createTemplates   bool // For global templates/static
-	createAppTemplates bool // For app-specific templates
-	runServer         bool
-	initializeGit     bool
-	setupTailwind     bool // For Tailwind CSS v4 setup
-	startDevServer    bool // For development server prompt
+	return totalSteps
+}
 
-	stepMessages    []string
-	splashCountdown int
-	width           int
+func (m *Model) updateProgress(status string) {
+	m.completedSteps++
+	progress := float64(m.completedSteps) / float64(m.totalSteps)
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: progress, status: status})
+	}
 }
 
 func NewModel() *Model {
@@ -63,26 +86,26 @@ func NewModel() *Model {
 		step:               stepSplashScreen,
 		splashCountdown:    3,
 		features:           []string{"vanilla"},
-		createTemplates:    true, // Default to Yes
-		createAppTemplates: true, // Default to Yes
-		runServer:          false, // Will be asked at the end
-		initializeGit:      true, // Default to Yes
+		createTemplates:    true,
+		createAppTemplates: true,
+		runServer:          false,
+		initializeGit:      true,
 		progressStatus:     "Initializing...",
 		selectedOptions:    []string{"Global Templates", "Initialize Git"},
+		completedSteps:     0,
 	}
 
 	theme := huh.ThemeBase()
-    theme.Focused.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-    theme.Focused.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
-    theme.Focused.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-    theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
-    theme.Focused.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")) // Add this line for yellow cursor
-    theme.Blurred.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")) // Optional: for blurred state
-    theme.Blurred.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
-    theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-    theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
+	theme.Focused.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+	theme.Focused.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
+	theme.Focused.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
+	theme.Focused.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
+	theme.Blurred.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
+	theme.Blurred.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
+	theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
 
-	// Create comprehensive form with all options
 	m.mainForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -119,12 +142,10 @@ func NewModel() *Model {
 		),
 	).WithTheme(theme)
 
-	// Create development server prompt form
 	m.devServerForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Open and run in VS Code?").
-				// Description("Automatically open VS Code and start the development server").
 				Affirmative("Yes").
 				Negative("No").
 				Value(&m.startDevServer),
@@ -141,7 +162,7 @@ func (m *Model) SetProgram(p *tea.Program) {
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
-			return tickMsg{} // For splash screen countdown
+			return tickMsg{}
 		}),
 		m.spinner.Tick,
 	)

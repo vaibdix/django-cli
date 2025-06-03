@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 )
 
-// startDevelopmentEnvironment opens VS Code and starts development servers in integrated terminal
 func (m *Model) startDevelopmentEnvironment() {
 	projectPath := m.projectName
 	if !filepath.IsAbs(projectPath) {
@@ -15,14 +14,10 @@ func (m *Model) startDevelopmentEnvironment() {
 		projectPath = filepath.Join(wd, m.projectName)
 	}
 
-	// Open VS Code first
 	exec.Command("code", projectPath).Start()
-
-	// Get Python path for Django server
 	pythonVenvPath := getPythonPath(projectPath)
 
 	if m.setupTailwind {
-		// Use AppleScript to open VS Code integrated terminal and split it
 		appleScript := fmt.Sprintf(`tell application "Visual Studio Code"
 			activate
 			delay 2
@@ -42,7 +37,6 @@ func (m *Model) startDevelopmentEnvironment() {
 		end tell`, pythonVenvPath)
 		exec.Command("osascript", "-e", appleScript).Start()
 	} else {
-		// Use AppleScript to open VS Code integrated terminal for Django server only
 		appleScript := fmt.Sprintf(`tell application "Visual Studio Code"
 			activate
 			delay 2
@@ -59,7 +53,6 @@ func (m *Model) startDevelopmentEnvironment() {
 	}
 }
 
-// setupServerInstructions provides instructions for starting the development server
 func (m *Model) setupServerInstructions(projectPath string) {
 	if m.runServer {
 		pythonVenvPath := getPythonPath(projectPath)

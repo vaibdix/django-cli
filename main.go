@@ -1,4 +1,3 @@
-// Update main.go to support CLI flags
 package main
 
 import (
@@ -10,10 +9,10 @@ import (
 )
 
 type CLIArgs struct {
-	ProjectName   string
-	DjangoVersion string
-	SkipInteractive bool
-	Help          bool
+	ProjectName        string
+	DjangoVersion      string
+	SkipInteractive    bool
+	Help               bool
 }
 
 func parseArgs() CLIArgs {
@@ -63,7 +62,6 @@ func main() {
 
 	m := NewModel()
 
-	// Pre-populate from CLI args
 	if args.ProjectName != "" {
 		m.projectName = args.ProjectName
 	}
@@ -72,8 +70,6 @@ func main() {
 	}
 
 	if args.SkipInteractive && args.ProjectName != "" {
-		// Skip to project creation with defaults
-		// You'd need to implement this logic in your model
 		m.step = stepSetup
 		go m.CreateProject()
 	}

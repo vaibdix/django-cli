@@ -6,50 +6,30 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	// "regexp" // Removed as it was unused
 	"runtime"
 )
 
-// getPythonPath returns the correct Python executable path within the venv for the current OS
 func getPythonPath(projectPath string) string {
 	if runtime.GOOS == "windows" {
 		return filepath.Join(projectPath, ".venv", "Scripts", "python.exe")
 	}
 	return filepath.Join(projectPath, ".venv", "bin", "python")
 }
-
-// getPipPath returns the correct pip executable path within the venv for the current OS
 func getPipPath(projectPath string) string {
 	if runtime.GOOS == "windows" {
 		return filepath.Join(projectPath, ".venv", "Scripts", "pip.exe")
 	}
 	return filepath.Join(projectPath, ".venv", "bin", "pip")
 }
-
-// isCommandAvailable checks if a command is available in the system PATH
 func isCommandAvailable(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
-
-// getPythonCommand returns the best available Python command (python3 or python) for creating the venv.
-func getPythonCommand() string {
-	if isCommandAvailable("python3") {
-		return "python3"
-	}
-	if isCommandAvailable("python") {
-		return "python"
-	}
-	return "" // Indicates no suitable Python command found
-}
-
-// addToListInSettingsPy attempts to add an item to a Python list (like INSTALLED_APPS or MIDDLEWARE)
-// in a settings.py content string. This is a simplified helper.
 func addToListInSettingsPy(settingsContent, listName, itemToAdd string) (string, error) {
 	quotedItem := fmt.Sprintf("'%s'", strings.Trim(itemToAdd, "'\""))
 
 	if strings.Contains(settingsContent, quotedItem) {
-		return settingsContent, nil // Already exists
+		return settingsContent, nil
 	}
 
 	listMarker := fmt.Sprintf("%s = [", listName)
@@ -62,10 +42,7 @@ func addToListInSettingsPy(settingsContent, listName, itemToAdd string) (string,
 		}
 	}
 
-	// Find the position of the opening bracket '['
 	actualListStartIndex := listStartIndex + strings.Index(settingsContent[listStartIndex:], "[")
-
-	// Find the corresponding closing bracket ']' for this list
 	openBracketCount := 0
 	listEndIndex := -1
 	for i := actualListStartIndex; i < len(settingsContent); i++ {
@@ -83,8 +60,6 @@ func addToListInSettingsPy(settingsContent, listName, itemToAdd string) (string,
 	if listEndIndex == -1 {
 		return settingsContent, fmt.Errorf("could not find closing bracket for list '%s'", listName)
 	}
-
-	// Determine indentation (simple: use 4 spaces from the line of the list marker)
 	lineStartForListMarker := 0
 	if idx := strings.LastIndex(settingsContent[:listStartIndex], "\n"); idx != -1 {
 		lineStartForListMarker = idx + 1
@@ -98,8 +73,6 @@ func addToListInSettingsPy(settingsContent, listName, itemToAdd string) (string,
 		}
 	}
 	itemIndent := baseIndent + "    "
-
-	// Check content inside the list just before the closing bracket
 	contentBeforeClosingBracket := strings.TrimSpace(settingsContent[actualListStartIndex+1 : listEndIndex])
 
 	var newEntry string
@@ -107,21 +80,18 @@ func addToListInSettingsPy(settingsContent, listName, itemToAdd string) (string,
 		newEntry = fmt.Sprintf("\n%s%s,\n%s", itemIndent, quotedItem, baseIndent)
 	} else if strings.HasSuffix(contentBeforeClosingBracket, ",") { // List has items and ends with a comma
 		newEntry = fmt.Sprintf("\n%s%s,", itemIndent, quotedItem)
-	} else { // List has items but does not end with a comma
+	} else {
 		newEntry = fmt.Sprintf(",\n%s%s,", itemIndent, quotedItem)
 	}
 
 	return settingsContent[:listEndIndex] + newEntry + settingsContent[listEndIndex:], nil
 }
 
-// validateProjectName validates the project name for empty string, invalid characters,
-// existing directory, and Python reserved words.
 func validateProjectName(name string) error {
 	if name == "" {
 		return fmt.Errorf("project name cannot be empty")
 	}
 
-	// Check for invalid characters
 	invalidChars := []string{"<", ">", ":", "\"", "|", "?", "*", " ", "/", "\\"}
 	for _, char := range invalidChars {
 		if strings.Contains(name, char) {
@@ -129,12 +99,10 @@ func validateProjectName(name string) error {
 		}
 	}
 
-	// Check if directory already exists
 	if _, err := os.Stat(name); err == nil {
 		return fmt.Errorf("directory '%s' already exists", name)
 	}
 
-	// Check for Python reserved words
 	reserved := []string{"and", "as", "assert", "break", "class", "continue",
 		"def", "del", "elif", "else", "except", "exec", "finally", "for",
 		"from", "global", "if", "import", "in", "is", "lambda", "not",
@@ -149,14 +117,11 @@ func validateProjectName(name string) error {
 	return nil
 }
 
-// validateDjangoVersion validates the Django version format.
 func validateDjangoVersion(version string) error {
 	if version == "" || version == "latest" {
-		return nil // These are valid
+		return nil
 	}
 
-	// Basic version format check (e.g., "4.2.0", "5.1")
-	// Using a simple string check instead of regexp for minimal dependency and common cases
 	parts := strings.Split(version, ".")
 	if len(parts) < 2 || len(parts) > 3 {
 		return fmt.Errorf("invalid Django version format. Use format like '4.2.0' or '5.1'")

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 )
 
-// initializeGitRepository initializes a Git repository and creates .gitignore
 func (m *Model) initializeGitRepository(projectPath string) error {
 	if !m.initializeGit {
 		return nil

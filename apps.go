@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// createDjangoApp creates a Django app and configures it
 func (m *Model) createDjangoApp(projectPath, settingsPath string) error {
 	if m.appName == "" {
 		return nil
@@ -21,7 +20,6 @@ func (m *Model) createDjangoApp(projectPath, settingsPath string) error {
 		return fmt.Errorf("failed to create app '%s': %v\nOutput: %s", m.appName, err, string(output))
 	}
 
-	// Add app to INSTALLED_APPS
 	settingsContentBytes, err := os.ReadFile(settingsPath)
 	if err != nil {
 		return fmt.Errorf("failed to read settings.py to add app: %v", err)
@@ -36,17 +34,14 @@ func (m *Model) createDjangoApp(projectPath, settingsPath string) error {
 	}
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created and registered Django app: %s", m.appName))
 
-	// Handle app templates if selected
 	if m.createAppTemplates {
 		if err := m.setupAppTemplates(projectPath); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-// setupAppTemplates creates app-specific templates and views
 func (m *Model) setupAppTemplates(projectPath string) error {
 	appPath := filepath.Join(projectPath, m.appName)
 	appTemplatesDir := filepath.Join(appPath, "templates", m.appName)
@@ -64,7 +59,6 @@ func (m *Model) setupAppTemplates(projectPath string) error {
 		return fmt.Errorf("failed to create index.html for app %s: %v", m.appName, err)
 	}
 
-	// Create views.py
 	viewsContent := fmt.Sprintf(`from django.shortcuts import render
 
 def index(request):
@@ -74,7 +68,6 @@ def index(request):
 		return fmt.Errorf("failed to create views.py for app %s: %v", m.appName, err)
 	}
 
-	// Create urls.py for app
 	appUrlsContent := fmt.Sprintf(`from django.urls import path
 from . import views
 
@@ -87,7 +80,6 @@ urlpatterns = [
 		return fmt.Errorf("failed to create urls.py for app %s: %v", m.appName, err)
 	}
 
-	// Update project urls.py
 	projectUrlsPath := filepath.Join(projectPath, m.projectName, "urls.py")
 	rootPathForProjectUrls := ""
 	if m.createTemplates {

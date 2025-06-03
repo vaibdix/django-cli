@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"time"
-
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -12,7 +11,6 @@ import (
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	// Global exit, regardless of state (unless error/done message is being shown)
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if keyMsg.Type == tea.KeyCtrlC || keyMsg.String() == "q" {
 			if !m.done && m.error == nil {
@@ -20,7 +18,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-
 	if m.error != nil || m.done {
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.Type == tea.KeyEnter || keyMsg.Type == tea.KeyCtrlC || keyMsg.String() == "q" || keyMsg.String() == "esc" {
@@ -30,11 +27,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Process general messages
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		// Adjust progress bar width dynamically
 		m.progress.Width = msg.Width - padding*2 - 4
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
@@ -44,7 +39,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tickMsg: // For splash screen countdown
+	case tickMsg:
 		if m.step == stepSplashScreen {
 			m.splashCountdown--
 			if m.splashCountdown <= 0 {
@@ -60,7 +55,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case projectProgressMsg:
 		if m.step == stepSetup {
-			// Animate progress bar
 			cmd := m.progress.SetPercent(msg.percent)
 			m.progressStatus = msg.status
 			m.stepMessages = append(m.stepMessages, "PROGRESS: "+msg.status)
@@ -78,20 +72,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.progress.SetPercent(1.0)
 			m.progressStatus = "Django project setup complete!"
 			m.stepMessages = append(m.stepMessages, "✅ Django project setup complete!")
-			// Transition to development server prompt
 			m.step = stepDevServerPrompt
 			cmds = append(cmds, cmd, m.devServerForm.Init())
 		}
 		return m, tea.Batch(cmds...)
 
-	// Handle progress bar frame messages for smooth animation
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
 		return m, cmd
 	}
 
-	// Handle main form
 	if m.step == stepProjectName && m.mainForm != nil {
 		if m.mainForm.State != huh.StateCompleted {
 			formModel, formCmd := m.mainForm.Update(msg)
@@ -100,11 +91,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			cmds = append(cmds, formCmd)
 		} else {
-			// Process form completion and immediately start setup
 			m.processFormData()
 			m.step = stepSetup
 			m.progressStatus = "Starting project setup..."
-			// Initialize progress bar to 0%
 			cmd := m.progress.SetPercent(0.0)
 			cmds = append(cmds, cmd)
 			go m.CreateProject()
@@ -113,7 +102,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Handle development server prompt form
 	if m.step == stepDevServerPrompt && m.devServerForm != nil {
 		if m.devServerForm.State != huh.StateCompleted {
 			formModel, formCmd := m.devServerForm.Update(msg)
@@ -122,13 +110,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			cmds = append(cmds, formCmd)
 		} else {
-			// Handle development server choice
 			if m.startDevServer {
-				// Start development server and open VS Code
 				go m.startDevelopmentEnvironment()
 				m.done = true
 			} else {
-				// Show manual steps
 				m.step = stepComplete
 			}
 			return m, tea.Batch(cmds...)
@@ -148,18 +133,13 @@ func (m *Model) getActiveForm() *huh.Form {
 }
 
 func (m *Model) processFormData() {
-	// Set default Django version if empty
 	if m.djangoVersion == "" {
 		m.djangoVersion = "latest"
 	}
-
-	// Process multiselect options
 	m.createTemplates = contains(m.selectedOptions, "Global Templates")
 	m.createAppTemplates = contains(m.selectedOptions, "App Templates")
 	m.initializeGit = contains(m.selectedOptions, "Initialize Git")
 	m.setupTailwind = contains(m.selectedOptions, "Tailwind")
-
-	// Log selections
 	m.stepMessages = append(m.stepMessages, "Project name: "+m.projectName)
 	m.stepMessages = append(m.stepMessages, "Django version: "+m.djangoVersion)
 	if m.appName != "" {

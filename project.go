@@ -19,7 +19,10 @@ func (m *Model) CreateProject() {
 		return
 	}
 
-	projectPath := m.projectName // Relative path for now
+	m.totalSteps = m.calculateTotalSteps()
+	m.completedSteps = 0
+
+	projectPath := m.projectName
 	if !filepath.IsAbs(projectPath) {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -29,43 +32,34 @@ func (m *Model) CreateProject() {
 		projectPath = filepath.Join(wd, m.projectName)
 	}
 
-	// Create project directory
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		currentErr = fmt.Errorf("failed to create project directory: %v", err)
 		return
 	}
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Project directory created: %s", projectPath))
-	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.05, status: "Creating project directory..."})
-	}
+	m.updateProgress("Creating project directory...")
 
-	// Create virtual environment
 	if currentErr = m.createVirtualEnvironment(projectPath); currentErr != nil {
 		return
 	}
 
-	// Install Django and dependencies
 	if currentErr = m.installDjango(projectPath); currentErr != nil {
 		return
 	}
 
-	// Create Django project
 	if currentErr = m.createDjangoProject(projectPath); currentErr != nil {
 		return
 	}
 
-	// Configure Django settings
 	settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
 	if currentErr = m.configureDjangoSettings(settingsPath); currentErr != nil {
 		return
 	}
 
-	// Setup templates and static files if chosen
 	if m.createTemplates {
 		if currentErr = m.setupGlobalTemplates(projectPath); currentErr != nil {
 			return
 		}
-		// Update settings for templates
 		settingsContentBytes, err := os.ReadFile(settingsPath)
 		if err != nil {
 			currentErr = fmt.Errorf("failed to read settings.py for templates: %v", err)
@@ -79,11 +73,8 @@ func (m *Model) CreateProject() {
 		m.stepMessages = append(m.stepMessages, "✅ Configured settings for global templates and static files.")
 	}
 
-	if m.program != nil {
-		m.program.Send(projectProgressMsg{percent: 0.95, status: "Finalizing settings configuration..."})
-	}
+	m.updateProgress("Finalizing settings configuration...")
 
-	// Create Django app if chosen
 	if m.appName != "" {
 		if currentErr = m.createDjangoApp(projectPath, settingsPath); currentErr != nil {
 			return
@@ -91,30 +82,21 @@ func (m *Model) CreateProject() {
 		m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created Django app '%s' with templates and URLs.", m.appName))
 	}
 
-
-
-	// Handle Git initialization if selected
 	if m.initializeGit {
 		if currentErr = m.initializeGitRepository(projectPath); currentErr != nil {
 			return
 		}
 	}
 
-	// Setup Tailwind CSS v4 if selected
 	if m.setupTailwind {
-		if m.program != nil {
-			m.program.Send(projectProgressMsg{percent: 0.90, status: "Setting up Tailwind CSS v4..."})
-		}
+		m.updateProgress("Setting up Tailwind CSS v4...")
 		if currentErr = m.setupTailwindCSS(projectPath); currentErr != nil {
 			return
 		}
 	}
-
-	// Handle server startup if selected
 	if m.runServer {
 		m.setupServerInstructions(projectPath)
 	}
 
 	m.stepMessages = append(m.stepMessages, "✅ Django project setup complete!")
-	// Final progress update will be handled by projectCreationDoneMsg logic in Update()
 }
