@@ -13,6 +13,8 @@ const (
 	stepAppTemplates // For app-specific templates, if an app is created
 	stepServerOption
 	stepGitInit
+	stepDevServerPrompt // Ask about running development server at the end
+	stepComplete     // Show completion message
 )
 type projectProgressMsg struct {
 	percent float64

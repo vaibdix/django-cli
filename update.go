@@ -78,8 +78,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.progress.SetPercent(1.0)
 			m.progressStatus = "Django project setup complete!"
 			m.stepMessages = append(m.stepMessages, "✅ Django project setup complete!")
-			m.done = true
-			cmds = append(cmds, cmd)
+			// Transition to development server prompt
+			m.step = stepDevServerPrompt
+			cmds = append(cmds, cmd, m.devServerForm.Init())
 		}
 		return m, tea.Batch(cmds...)
 
@@ -108,6 +109,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 			go m.CreateProject()
 			cmds = append(cmds, m.spinner.Tick)
+			return m, tea.Batch(cmds...)
+		}
+	}
+
+	// Handle development server prompt form
+	if m.step == stepDevServerPrompt && m.devServerForm != nil {
+		if m.devServerForm.State != huh.StateCompleted {
+			formModel, formCmd := m.devServerForm.Update(msg)
+			if castedForm, ok := formModel.(*huh.Form); ok {
+				m.devServerForm = castedForm
+			}
+			cmds = append(cmds, formCmd)
+		} else {
+			// Handle development server choice
+			if m.startDevServer {
+				// Start development server and open VS Code
+				go m.startDevelopmentEnvironment()
+				m.done = true
+			} else {
+				// Show manual steps
+				m.step = stepComplete
+			}
+			return m, tea.Batch(cmds...)
 		}
 	}
 	return m, tea.Batch(cmds...)
@@ -117,6 +141,8 @@ func (m *Model) getActiveForm() *huh.Form {
 	switch m.step {
 	case stepProjectName:
 		return m.mainForm
+	case stepDevServerPrompt:
+		return m.devServerForm
 	}
 	return nil
 }
@@ -130,7 +156,6 @@ func (m *Model) processFormData() {
 	// Process multiselect options
 	m.createTemplates = contains(m.selectedOptions, "Global Templates")
 	m.createAppTemplates = contains(m.selectedOptions, "App Templates")
-	m.runServer = contains(m.selectedOptions, "Run Server")
 	m.initializeGit = contains(m.selectedOptions, "Initialize Git")
 	m.setupTailwind = contains(m.selectedOptions, "Tailwind")
 

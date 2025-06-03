@@ -10,6 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+
+
 type Model struct {
 	step            step
 	projectName     string
@@ -25,6 +27,7 @@ type Model struct {
 
 	// Single comprehensive form
 	mainForm *huh.Form
+	devServerForm *huh.Form
 
 	// Configuration options
 	selectedOptions   []string // For multiselect
@@ -34,6 +37,7 @@ type Model struct {
 	runServer         bool
 	initializeGit     bool
 	setupTailwind     bool // For Tailwind CSS v4 setup
+	startDevServer    bool // For development server prompt
 
 	stepMessages    []string
 	splashCountdown int
@@ -61,27 +65,28 @@ func NewModel() *Model {
 		features:           []string{"vanilla"},
 		createTemplates:    true, // Default to Yes
 		createAppTemplates: true, // Default to Yes
-		runServer:          true, // Default to Yes
+		runServer:          false, // Will be asked at the end
 		initializeGit:      true, // Default to Yes
 		progressStatus:     "Initializing...",
-		selectedOptions:    []string{"Global Templates", "Run Server", "Initialize Git"},
+		selectedOptions:    []string{"Global Templates", "Initialize Git"},
 	}
 
 	theme := huh.ThemeBase()
-	theme.Focused.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	theme.Focused.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
-	theme.Focused.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-	theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
-	theme.Blurred.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
-	theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-	theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
+    theme.Focused.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+    theme.Focused.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
+    theme.Focused.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+    theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
+    theme.Focused.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")) // Add this line for yellow cursor
+    theme.Blurred.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")) // Optional: for blurred state
+    theme.Blurred.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
+    theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+    theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
 
 	// Create comprehensive form with all options
 	m.mainForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Project Name").
-				Description("Enter a memorable name for your Django project").
 				Value(&m.projectName).
 				Validate(validateProjectName),
 		),
@@ -106,12 +111,23 @@ func NewModel() *Model {
 				Options(
 					huh.NewOption("Global Templates & Static Directories", "Global Templates").Selected(true),
 					huh.NewOption("App Templates (if creating an app)", "App Templates").Selected(true),
-					huh.NewOption("Auto-start Development Server", "Run Server").Selected(true),
 					huh.NewOption("Initialize Git Repository", "Initialize Git").Selected(true),
 					huh.NewOption("Vanilla + Tailwind CSS v4", "Tailwind"),
 				).
-				Limit(5).
+				Limit(4).
 				Value(&m.selectedOptions),
+		),
+	).WithTheme(theme)
+
+	// Create development server prompt form
+	m.devServerForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Open and run in VS Code?").
+				// Description("Automatically open VS Code and start the development server").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&m.startDevServer),
 		),
 	).WithTheme(theme)
 
