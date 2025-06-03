@@ -433,3 +433,4 @@ func (m *Model) renderFormWithColorfulItems() string {
 	
 	return s.String()
 }
+
