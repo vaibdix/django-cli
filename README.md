@@ -57,6 +57,19 @@ The generated project includes:
 
 ## Installation
 
+### Windows Installation
+
+1. Download the latest `django-cli-windows.exe` from the releases page
+2. Open PowerShell as Administrator
+3. Navigate to the download directory
+4. Run the installation command:
+   ```powershell
+   # Run the installer
+   .\django-cli-windows.exe --install
+   ```
+5. Restart your terminal
+6. You can now use `django-cli` from any directory!
+
 ### Build from Source
 
 ```bash

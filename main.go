@@ -9,10 +9,11 @@ import (
 )
 
 type CLIArgs struct {
-	ProjectName        string
-	DjangoVersion      string
-	SkipInteractive    bool
-	Help               bool
+	ProjectName     string
+	DjangoVersion   string
+	SkipInteractive bool
+	Help            bool
+	Install         bool
 }
 
 func parseArgs() CLIArgs {
@@ -25,6 +26,7 @@ func parseArgs() CLIArgs {
 	flag.BoolVar(&args.SkipInteractive, "auto", false, "Skip interactive mode with defaults")
 	flag.BoolVar(&args.Help, "help", false, "Show help")
 	flag.BoolVar(&args.Help, "h", false, "Show help (shorthand)")
+	flag.BoolVar(&args.Install, "install", false, "Install CLI globally (Windows only)")
 
 	flag.Parse()
 
@@ -41,6 +43,7 @@ Flags:
   -n, --name string      Project name
   -v, --version string   Django version (default: latest)
   --auto                 Skip interactive mode with defaults
+  --install             Install CLI globally (Windows only)
   -h, --help            Show this help message
 
 Examples:
@@ -48,6 +51,7 @@ Examples:
   django-forge -n myproject              # Set project name
   django-forge -n myproject -v 4.2.7     # Set name and Django version
   django-forge --auto -n myproject       # Non-interactive with defaults
+  django-forge --install                 # Install globally on Windows
 
 Config file: ~/.django-forge.json (auto-created with your preferences)`)
 }
@@ -57,6 +61,14 @@ func main() {
 
 	if args.Help {
 		showHelp()
+		return
+	}
+
+	if args.Install {
+		if err := installOnWindows(); err != nil {
+			fmt.Printf("Error during installation: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
