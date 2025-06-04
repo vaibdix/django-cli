@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -125,6 +126,25 @@ func (m *Model) View() string {
 	}
 
 	activeForm := m.getActiveForm()
+
+	// Handle form completion immediately
+	if activeForm != nil && activeForm.State == huh.StateCompleted {
+		if m.step == stepProjectName {
+			m.step = stepSetup
+			m.processFormData()
+			m.totalSteps = m.calculateTotalSteps()
+			m.progressStatus = "Starting project setup..."
+			m.progress.SetPercent(0.0)
+			go m.CreateProject()
+		} else if m.step == stepDevServerPrompt {
+			if m.startDevServer {
+				go m.startDevelopmentEnvironment()
+				m.done = true
+			} else {
+				m.step = stepComplete
+			}
+		}
+	}
 
 	switch m.step {
 	case stepSetup:

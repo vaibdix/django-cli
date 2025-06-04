@@ -31,7 +31,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.progress.Width = msg.Width - padding*2 - 4
+		m.progress.Width = m.width - padding*2 - 4
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
 		}
@@ -93,12 +93,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, formCmd)
 		} else {
 			m.processFormData()
-			m.step = stepSetup
+			m.totalSteps = m.calculateTotalSteps()
 			m.progressStatus = "Starting project setup..."
-			cmd := m.progress.SetPercent(0.0)
-			cmds = append(cmds, cmd)
+			m.progress.SetPercent(0.0)
+
+			m.step = stepSetup
+
 			go m.CreateProject()
-			cmds = append(cmds, m.spinner.Tick)
+
+			cmds = append(cmds,
+				m.spinner.Tick,
+				func() tea.Msg {
+					return projectProgressMsg{
+						percent: 0.0,
+						status:  "Initializing project setup...",
+					}
+				},
+				m.progress.SetPercent(0.0),
+				func() tea.Msg {
+					return progress.FrameMsg{}
+				},
+			)
+
 			return m, tea.Batch(cmds...)
 		}
 	}
@@ -114,6 +130,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.startDevServer {
 				go m.startDevelopmentEnvironment()
 				m.done = true
+				cmds = append(cmds, func() tea.Msg {
+					return tea.KeyMsg{Type: tea.KeyEnter}
+				})
 			} else {
 				m.step = stepComplete
 			}
