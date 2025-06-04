@@ -71,7 +71,7 @@ def index(request):
 	appUrlsContent := fmt.Sprintf(`from django.urls import path
 from . import views
 
-app_name = '%s'
+app_name = '%s'  # Add this line to define app_name
 urlpatterns = [
     path('', views.index, name='index'),
 ]

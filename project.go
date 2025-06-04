@@ -56,6 +56,10 @@ func (m *Model) CreateProject() {
 		return
 	}
 
+	if currentErr = m.setupProjectUrls(projectPath); currentErr != nil {
+		return
+	}
+
 	if m.createTemplates {
 		if currentErr = m.setupGlobalTemplates(projectPath); currentErr != nil {
 			return
@@ -94,6 +98,17 @@ func (m *Model) CreateProject() {
 			return
 		}
 	}
+
+	if m.setupRestFramework {
+		if currentErr = m.setupDjangoRestFramework(projectPath); currentErr != nil {
+			return
+		}
+	}
+
+	if currentErr = m.runDjangoMigrations(projectPath); currentErr != nil {
+		return
+	}
+
 	if m.runServer {
 		m.setupServerInstructions(projectPath)
 	}

@@ -30,6 +30,7 @@ type Model struct {
 	runServer          bool
 	initializeGit      bool
 	setupTailwind      bool
+	setupRestFramework bool
 	startDevServer     bool
 	stepMessages       []string
 	splashCountdown    int
@@ -39,24 +40,26 @@ type Model struct {
 }
 
 func (m *Model) calculateTotalSteps() int {
-	// Base steps: project dir, venv, django, settings
-	totalSteps := 4
+	steps := 3 // Base steps (create directory, venv, Django)
 
-	// Optional features
 	if m.createTemplates {
-		totalSteps++
+		steps++
 	}
 	if m.appName != "" {
-		totalSteps++
+		steps++
 	}
 	if m.initializeGit {
-		totalSteps++
+		steps++
 	}
 	if m.setupTailwind {
-		totalSteps++
+		steps++
 	}
+	if m.setupRestFramework {
+		steps++
+	}
+	steps++ // For migrations (makemigrations and migrate)
 
-	return totalSteps
+	return steps
 }
 
 func (m *Model) updateProgress(status string) {
@@ -136,8 +139,9 @@ func NewModel() *Model {
 					huh.NewOption("App Templates (if creating an app)", "App Templates").Selected(true),
 					huh.NewOption("Initialize Git Repository", "Initialize Git").Selected(true),
 					huh.NewOption("Vanilla + Tailwind CSS v4", "Tailwind"),
+					huh.NewOption("Django REST Framework API", "REST Framework"),
 				).
-				Limit(4).
+				Limit(5).
 				Value(&m.selectedOptions),
 		),
 	).WithTheme(theme)

@@ -44,10 +44,81 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 	}
 
 	indexContent := `{% extends 'base.html' %}
-{% block title %}Home{% endblock %}
+{% block title %}Welcome - {{ project_name }}{% endblock %}
+
 {% block content %}
-    <h1>Welcome to {{ project_name }}!</h1>
-    <p>Your Django project is ready.</p>
+<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
+                Welcome to {{ project_name }}
+            </h1>
+            <p class="mt-3 text-xl text-gray-500 sm:mt-4">
+                Your Django project is ready for development
+            </p>
+        </div>
+
+        <div class="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <!-- Documentation Card -->
+            <a href="{% url 'api_docs' %}" class="group relative bg-white rounded-lg shadow-lg overflow-hidden transform transition duration-200 hover:scale-105">
+                <div class="px-6 py-8">
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="mt-4 text-lg font-medium text-gray-900">Documentation</h3>
+                        <p class="mt-2 text-sm text-gray-500">
+                            View API endpoints, authentication, and admin documentation
+                        </p>
+                    </div>
+                </div>
+            </a>
+
+            {% if app_name %}
+            <!-- App Card -->
+            <a href="/{{ app_name }}/" class="group relative bg-white rounded-lg shadow-lg overflow-hidden transform transition duration-200 hover:scale-105">
+                <div class="px-6 py-8">
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto bg-green-100 rounded-lg flex items-center justify-center">
+                            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="mt-4 text-lg font-medium text-gray-900">{{ app_name|title }} App</h3>
+                        <p class="mt-2 text-sm text-gray-500">
+                            Access your application's main page
+                        </p>
+                    </div>
+                </div>
+            </a>
+            {% endif %}
+
+            <!-- Quick Links Card -->
+            <div class="group relative bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="px-6 py-8">
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto bg-purple-100 rounded-lg flex items-center justify-center">
+                            <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <h3 class="mt-4 text-lg font-medium text-gray-900">Quick Links</h3>
+                        <div class="mt-4 space-y-2">
+                            <a href="/admin/" class="block text-sm text-indigo-600 hover:text-indigo-500">
+                                Admin Interface →
+                            </a>
+                            <a href="/api/v1/" class="block text-sm text-indigo-600 hover:text-indigo-500">
+                                API Root →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}`
 	if err := os.WriteFile(filepath.Join(globalTemplatesPath, "index.html"), []byte(indexContent), 0644); err != nil {
 		return fmt.Errorf("failed to create index.html: %v", err)
@@ -61,6 +132,101 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 	jsContent := `console.log('Django project initialized!');`
 	if err := os.WriteFile(filepath.Join(staticPath, "js", "main.js"), []byte(jsContent), 0644); err != nil {
 		return fmt.Errorf("failed to create main.js: %v", err)
+	}
+
+	// Write the API docs template
+	apiDocsContent := `{% extends 'base.html' %}
+{% block title %}API Documentation - {{ project_name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-gray-900">
+                API Documentation
+            </h1>
+            <p class="mt-3 text-lg text-gray-500">
+                Explore available endpoints and features
+            </p>
+        </div>
+
+        <!-- API Endpoints Section -->
+        <div class="mt-12 space-y-8">
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                <div class="px-4 py-5 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-900">
+                        API Endpoints
+                    </h2>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg font-medium text-gray-900">Books API</h3>
+                        <div class="mt-4 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">GET</span>
+                                    <span class="px-2 py-1 text-xs font-semibold text-blue-800 bg-blue-100 rounded-full">POST</span>
+                                    <code class="ml-2 text-sm text-indigo-600">/api/v1/books/</code>
+                                </div>
+                                <span class="text-sm text-gray-500">List and create books</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">GET</span>
+                                    <span class="px-2 py-1 text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full">PUT</span>
+                                    <span class="px-2 py-1 text-xs font-semibold text-red-800 bg-red-100 rounded-full">DELETE</span>
+                                    <code class="ml-2 text-sm text-indigo-600">/api/v1/books/{id}/</code>
+                                </div>
+                                <span class="text-sm text-gray-500">Manage individual books</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">GET</span>
+                                    <code class="ml-2 text-sm text-indigo-600">/api/v1/books/recent/</code>
+                                </div>
+                                <span class="text-sm text-gray-500">List recent books</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Authentication Section -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                <div class="px-4 py-5 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-900">
+                        Authentication
+                    </h2>
+                </div>
+                <div class="px-4 py-5 sm:p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">GET</span>
+                            <code class="ml-2 text-sm text-indigo-600">/api-auth/login/</code>
+                        </div>
+                        <span class="text-sm text-gray-500">API authentication login</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">GET</span>
+                            <code class="ml-2 text-sm text-indigo-600">/api-auth/logout/</code>
+                        </div>
+                        <span class="text-sm text-gray-500">API authentication logout</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="/" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                Back to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}`
+	if err := os.WriteFile(filepath.Join(globalTemplatesPath, "api-docs.html"), []byte(apiDocsContent), 0644); err != nil {
+		return fmt.Errorf("failed to create api-docs.html: %v", err)
 	}
 
 	m.stepMessages = append(m.stepMessages, "✅ Created global templates and static files.")
@@ -85,10 +251,37 @@ func updateSettingsForTemplates(settingsContent string) string {
 			} else {
 				settingsContent += "\n\n" + staticfilesDirsSetting + "\n"
 			}
-		} else { 
+		} else {
 			settingsContent += "\n\n" + staticfilesDirsSetting + "\n"
 		}
 	}
 
 	return settingsContent
+}
+
+func (m *Model) setupProjectUrls(projectPath string) error {
+	rootPathForProjectUrls := ""
+	if m.createTemplates {
+		rootPathForProjectUrls = "    path('', TemplateView.as_view(template_name='index.html'), name='home'),\n"
+	}
+
+	projectUrlsContent := fmt.Sprintf(`from django.contrib import admin
+from django.urls import path, include
+%s
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('__reload__/', include('django_browser_reload.urls')),
+%s%s]
+`, Ternary(m.createTemplates, "from django.views.generic import TemplateView", ""),
+		fmt.Sprintf("    path('%s/', include('%s.urls')),\n", m.appName, m.appName),
+		rootPathForProjectUrls)
+
+	projectConfigDir := filepath.Join(projectPath, m.projectName)
+	if err := os.WriteFile(filepath.Join(projectConfigDir, "urls.py"), []byte(projectUrlsContent), 0644); err != nil {
+		return fmt.Errorf("failed to create urls.py: %v", err)
+	}
+
+	m.stepMessages = append(m.stepMessages, "✅ Created project URLs.")
+	m.updateProgress("Setting up project URLs...")
+	return nil
 }

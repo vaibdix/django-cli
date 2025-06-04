@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"time"  
+
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -140,6 +141,7 @@ func (m *Model) processFormData() {
 	m.createAppTemplates = contains(m.selectedOptions, "App Templates")
 	m.initializeGit = contains(m.selectedOptions, "Initialize Git")
 	m.setupTailwind = contains(m.selectedOptions, "Tailwind")
+	m.setupRestFramework = contains(m.selectedOptions, "REST Framework")
 	m.stepMessages = append(m.stepMessages, "Project name: "+m.projectName)
 	m.stepMessages = append(m.stepMessages, "Django version: "+m.djangoVersion)
 	if m.appName != "" {
