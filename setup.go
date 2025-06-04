@@ -4,11 +4,37 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
 func (m *Model) createVirtualEnvironment(projectPath string) error {
-	cmd := exec.Command("python3", "-m", "venv", ".venv")
+	// Try different Python commands based on the OS
+	pythonCommands := []string{"python", "python3"}
+	if runtime.GOOS == "windows" {
+		pythonCommands = []string{"python", "py", "python3"}
+	}
+
+	var pythonCmd string
+	for _, cmd := range pythonCommands {
+		if isCommandAvailable(cmd) {
+			pythonCmd = cmd
+			break
+		}
+	}
+
+	if pythonCmd == "" {
+		if runtime.GOOS == "windows" {
+			return fmt.Errorf("Python not found. Please:\n" +
+				"1. Download Python from https://www.python.org/downloads/\n" +
+				"2. During installation, CHECK 'Add Python to PATH'\n" +
+				"3. Restart your terminal/command prompt\n" +
+				"4. Try running this command again")
+		}
+		return fmt.Errorf("Python not found. Please install Python 3.x and ensure it's in your PATH")
+	}
+
+	cmd := exec.Command(pythonCmd, "-m", "venv", ".venv")
 	cmd.Dir = projectPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to create virtual environment: %v\nOutput: %s", err, string(output))
