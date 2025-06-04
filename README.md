@@ -40,6 +40,21 @@ An interactive command-line tool for creating Django projects with modern develo
 -   **Error Handling**: Comprehensive validation and error messages
 -   **Cross-platform**: Works on macOS, Linux, and Windows
 
+### 🎨 User Interface Improvements
+
+- **Welcome Page**: Displays project name and quick access links
+- **API Documentation**: Clean, organized display of API endpoints
+- **Responsive Design**: Properly centered layouts with Tailwind CSS
+- **Template Context**: Automatic project name injection in templates
+
+### 📚 API Documentation
+
+The generated project includes:
+- Interactive API documentation page at `/api-docs/`
+- Welcome page with project name at root URL `/`
+- Quick links to admin interface and API endpoints
+- Clear display of available API endpoints and authentication routes
+
 ## Installation
 
 ### Build from Source

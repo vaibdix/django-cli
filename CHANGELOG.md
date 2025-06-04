@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2025-06-04
+
+### Added
+- Project name now appears in welcome page and documentation
+- Improved template structure with proper context passing
+- Enhanced API documentation page with better styling
+- Centralized layout for both welcome and API documentation pages
+
+### Fixed
+- Fixed project name not displaying in templates
+- Resolved URL namespace conflicts with REST framework
+- Improved template context handling
+- Fixed centering issues in template layouts
+
 ## [0.2.0] - 2025-06-02
 
 ### Added

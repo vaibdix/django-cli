@@ -47,13 +47,13 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 {% block title %}Welcome - {{ project_name }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
         <div class="text-center">
-            <h1 class="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
-                Welcome to {{ project_name }}
+            <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
+                Welcome to {{ project_name|default:project_name }}
             </h1>
-            <p class="mt-3 text-xl text-gray-500 sm:mt-4">
+            <p class="mt-3 text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl max-w-prose mx-auto">
                 Your Django project is ready for development
             </p>
         </div>
@@ -260,28 +260,64 @@ func updateSettingsForTemplates(settingsContent string) string {
 }
 
 func (m *Model) setupProjectUrls(projectPath string) error {
-	rootPathForProjectUrls := ""
-	if m.createTemplates {
-		rootPathForProjectUrls = "    path('', TemplateView.as_view(template_name='index.html'), name='home'),\n"
+	// First create a context processor to make project_name available globally
+	contextProcessorsPath := filepath.Join(projectPath, m.projectName, "context_processors.py")
+	contextProcessorsContent := fmt.Sprintf(`def project_context(request):
+    return {
+        'project_name': '%s'
+    }
+`, m.projectName)
+
+	if err := os.WriteFile(contextProcessorsPath, []byte(contextProcessorsContent), 0644); err != nil {
+		return fmt.Errorf("failed to create context_processors.py: %v", err)
 	}
 
-	projectUrlsContent := fmt.Sprintf(`from django.contrib import admin
-from django.urls import path, include
-%s
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('__reload__/', include('django_browser_reload.urls')),
-%s%s]
-`, Ternary(m.createTemplates, "from django.views.generic import TemplateView", ""),
-		fmt.Sprintf("    path('%s/', include('%s.urls')),\n", m.appName, m.appName),
-		rootPathForProjectUrls)
+	// Update settings.py to include the context processor
+	settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
+	settingsContent, err := os.ReadFile(settingsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read settings.py: %v", err)
+	}
 
-	projectConfigDir := filepath.Join(projectPath, m.projectName)
-	if err := os.WriteFile(filepath.Join(projectConfigDir, "urls.py"), []byte(projectUrlsContent), 0644); err != nil {
+	// Add context processor to templates settings
+	updatedSettings := strings.Replace(
+		string(settingsContent),
+		"'django.contrib.messages.context_processors.messages',",
+		"'django.contrib.messages.context_processors.messages',\n                '"+m.projectName+".context_processors.project_context',",
+		1,
+	)
+
+	if err := os.WriteFile(settingsPath, []byte(updatedSettings), 0644); err != nil {
+		return fmt.Errorf("failed to update settings.py: %v", err)
+	}
+
+	// Create views.py
+	viewsContent := `from django.views.generic import TemplateView
+
+class HomeView(TemplateView):
+    template_name = 'index.html'`
+
+	viewsPath := filepath.Join(projectPath, m.projectName, "views.py")
+	if err := os.WriteFile(viewsPath, []byte(viewsContent), 0644); err != nil {
+		return fmt.Errorf("failed to create views.py: %v", err)
+	}
+
+	// Update urls.py
+	urlsContent := fmt.Sprintf(`from django.contrib import admin
+from django.urls import path, include
+from . import views
+
+urlpatterns = [
+    path('', views.HomeView.as_view(), name='home'),
+    path('admin/', admin.site.urls),
+    path('api-docs/', views.HomeView.as_view(template_name='api-docs.html'), name='api_docs'),
+    path('__reload__/', include('django_browser_reload.urls')),
+]`)
+
+	urlsPath := filepath.Join(projectPath, m.projectName, "urls.py")
+	if err := os.WriteFile(urlsPath, []byte(urlsContent), 0644); err != nil {
 		return fmt.Errorf("failed to create urls.py: %v", err)
 	}
 
-	m.stepMessages = append(m.stepMessages, "✅ Created project URLs.")
-	m.updateProgress("Setting up project URLs...")
 	return nil
 }
