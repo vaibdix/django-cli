@@ -17,30 +17,30 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.AdaptiveColor{
-			Light: "#FF6B35", 
-			Dark:  "#FF8A50", 
+			Light: "#FF6B35",
+			Dark:  "#FF8A50",
 		}).
 		MarginBottom(1)
 
 	subtitleStyle = lipgloss.NewStyle().
 			Italic(true).
 			Foreground(lipgloss.AdaptiveColor{
-			Light: "#7C3AED", 
-			Dark:  "#A78BFA", 
+			Light: "#7C3AED",
+			Dark:  "#A78BFA",
 		}).
 		MarginBottom(1)
 
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{
 			Light: "#DC2626",
-			Dark:  "#EF4444", 
+			Dark:  "#EF4444",
 		}).
 		Bold(true).
 		MarginBottom(1)
 
 	footerStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{
-			Light: "#64748B", 
+			Light: "#64748B",
 			Dark:  "#CBD5E1",
 		}).
 		Italic(true).
@@ -51,12 +51,12 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.AdaptiveColor{
 			Light: "#7C3AED",
-			Dark:  "#A855F7", 
+			Dark:  "#A855F7",
 		})
 
 	progressStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{
-			Light: "#059669", 
+			Light: "#059669",
 			Dark:  "#10B981",
 		})
 )
@@ -140,10 +140,24 @@ func (m *Model) View() string {
 		}
 
 		pad := strings.Repeat(" ", padding)
-		s.WriteString("\n" + pad + m.progress.View() + "\n\n")
+		s.WriteString(pad + m.progress.View() + "\n\n")
 
 		percentage := int(m.progress.Percent() * 100)
 		s.WriteString(pad + progressStyle.Render(fmt.Sprintf("Progress: %d%%", percentage)) + "\n")
+
+		// Show progress messages with proper padding and spacing
+		if len(m.stepMessages) > 0 {
+			s.WriteString("\n" + pad + "Recent steps:\n")
+			start := len(m.stepMessages)
+			if start > 3 {
+				start = len(m.stepMessages) - 3
+			}
+			for _, msg := range m.stepMessages[start:] {
+				s.WriteString(pad + "• " + msg + "\n")
+			}
+		}
+
+		return contentBox.Width(contentWidth).Render(s.String())
 
 	case stepProjectName:
 		if activeForm != nil {
