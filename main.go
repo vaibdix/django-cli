@@ -66,10 +66,10 @@ func main() {
 
 	if args.Install {
 		if err := installOnWindows(); err != nil {
-			fmt.Printf("Error during installation: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Installation failed: %v\n", err)
 			os.Exit(1)
 		}
-		return
+		os.Exit(0)
 	}
 
 	m := NewModel()
