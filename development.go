@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 )
 
 func (m *Model) startDevelopmentEnvironment() {
@@ -14,43 +15,110 @@ func (m *Model) startDevelopmentEnvironment() {
 		projectPath = filepath.Join(wd, m.projectName)
 	}
 
-	exec.Command("code", projectPath).Start()
-	pythonVenvPath := getPythonPath(projectPath)
+	// Create VS Code tasks.json to automate terminal setup
+	createVSCodeTasks(projectPath, m.setupTailwind)
 
-	if m.setupTailwind {
-		appleScript := fmt.Sprintf(`tell application "Visual Studio Code"
-			activate
-			delay 2
-		end tell
-		tell application "System Events"
-			tell process "Visual Studio Code"
-				key code 50 using {control down}
-				delay 1
-				keystroke "npm run watch:css"
-				key code 36
-				delay 1
-				key code 42 using {command down}
-				delay 1
-				keystroke "%s manage.py runserver"
-				key code 36
-			end tell
-		end tell`, pythonVenvPath)
-		exec.Command("osascript", "-e", appleScript).Start()
-	} else {
-		appleScript := fmt.Sprintf(`tell application "Visual Studio Code"
-			activate
-			delay 2
-		end tell
-		tell application "System Events"
-			tell process "Visual Studio Code"
-				key code 50 using {control down}
-				delay 1
-				keystroke "%s manage.py runserver"
-				key code 36
-			end tell
-		end tell`, pythonVenvPath)
-		exec.Command("osascript", "-e", appleScript).Start()
+	// Open VS Code with the project
+	cmd := exec.Command("code", projectPath)
+	cmd.Start()
+
+	// Add instructions to the step messages
+	m.stepMessages = append(m.stepMessages, "✨ VS Code will open with the project.")
+	m.stepMessages = append(m.stepMessages, "✨ Two terminals will automatically open with your development servers.")
+	m.stepMessages = append(m.stepMessages, "✨ You can run the tasks manually from the Terminal menu > Run Task.")
+}
+
+func createVSCodeTasks(projectPath string, setupTailwind bool) {
+	// Create .vscode directory if it doesn't exist
+	vscodeDir := filepath.Join(projectPath, ".vscode")
+	os.MkdirAll(vscodeDir, 0755)
+
+	// Determine the Python command for different platforms
+	pythonCmd := "python"
+	activateCmd := ""
+
+	// Check for virtual environment
+	venvDirs := []string{"venv", "env", ".venv"}
+	for _, dir := range venvDirs {
+		if _, err := os.Stat(filepath.Join(projectPath, dir)); err == nil {
+			if runtime.GOOS == "windows" {
+				activateCmd = ".\\" + dir + "\\Scripts\\activate && "
+				pythonCmd = "python"
+			} else {
+				activateCmd = "source ./" + dir + "/bin/activate && "
+				pythonCmd = "python"
+			}
+			break
+		}
 	}
+
+	// Create tasks configuration
+	tasks := map[string]interface{}{
+		"version": "2.0.0",
+		"tasks":   []map[string]interface{}{},
+	}
+
+	// Task for running Django server
+	djangoTask := map[string]interface{}{
+		"label":       "Django: Run server",
+		"type":        "shell",
+		"command":     activateCmd + pythonCmd + " manage.py runserver",
+		"presentation": map[string]interface{}{
+			"reveal":          "always",
+			"panel":           "new",
+			"group":           "development",
+			"showReuseMessage": false,
+		},
+		"runOptions": map[string]interface{}{
+			"runOn": "folderOpen",
+		},
+	}
+
+	// Add Django task
+	tasks["tasks"] = append(tasks["tasks"].([]map[string]interface{}), djangoTask)
+
+	// If Tailwind is set up, add task for watching CSS
+	if setupTailwind {
+		tailwindTask := map[string]interface{}{
+			"label":       "Tailwind: Watch CSS",
+			"type":        "shell",
+			"command":     "npm run watch:css",
+			"presentation": map[string]interface{}{
+				"reveal":          "always",
+				"panel":           "new",
+				"group":           "development",
+				"showReuseMessage": false,
+			},
+			"runOptions": map[string]interface{}{
+				"runOn": "folderOpen",
+			},
+		}
+
+		// Add Tailwind task
+		tasks["tasks"] = append(tasks["tasks"].([]map[string]interface{}), tailwindTask)
+	}
+
+	// Write tasks.json
+	tasksJSON, _ := json.MarshalIndent(tasks, "", "  ")
+	tasksFile := filepath.Join(vscodeDir, "tasks.json")
+	os.WriteFile(tasksFile, tasksJSON, 0644)
+
+	// Create a welcome file with instructions
+	welcomeContent := "# Welcome to Your Django Project!\n\n"
+	welcomeContent += "Two terminal windows should automatically open with:\n\n"
+
+	if setupTailwind {
+		welcomeContent += "1. Django development server (`python manage.py runserver`)\n"
+		welcomeContent += "2. Tailwind CSS watcher (`npm run watch:css`)\n\n"
+	} else {
+		welcomeContent += "1. Django development server (`python manage.py runserver`)\n\n"
+	}
+
+	welcomeContent += "If the terminals didn't open automatically, you can run these tasks manually from the menu:\n"
+	welcomeContent += "Terminal > Run Task\n\n"
+
+	welcomeFile := filepath.Join(projectPath, "WELCOME.md")
+	os.WriteFile(welcomeFile, []byte(welcomeContent), 0644)
 }
 
 func (m *Model) setupServerInstructions(projectPath string) {
