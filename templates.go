@@ -56,7 +56,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
                     <div class="flex items-center space-x-3">
-                        <div class="flex items-center space-x-2">
+                            <a href="http://localhost:8000" class="flex items-center space-x-2">
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect width="32" height="32" rx="8" fill="white"/>
                                 <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -64,7 +64,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                             <h1 class="text-xl font-semibold">{{ project_name|default:"Django" }}</h1>
                         </div>
                     </div>
-                    
+
                     <nav class="hidden md:flex items-center space-x-8">
                         <a href="/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Home</a>
                         <a href="{% url 'api_docs' %}" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Docs</a>
@@ -103,7 +103,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                         </div>
                         <p class="text-gray-400 mb-6 max-w-md">The Django framework that gives you everything you need to build full-stack web applications.</p>
                     </div>
-                    
+
                     <div>
                         <h3 class="text-sm font-semibold text-white mb-4">Resources</h3>
                         <ul class="space-y-3">
@@ -112,7 +112,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                             <li><a href="/admin/" class="text-gray-400 hover:text-white transition-colors text-sm">Admin Panel</a></li>
                         </ul>
                     </div>
-                    
+
                     <div>
                         <h3 class="text-sm font-semibold text-white mb-4">Support</h3>
                         <ul class="space-y-3">
@@ -122,7 +122,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                         </ul>
                     </div>
                 </div>
-                
+
                 <div class="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
                     <p class="text-gray-400 text-sm">© 2025 {{ project_name|default:"Django Site" }}. All rights reserved.</p>
                     <div class="flex space-x-6 mt-4 md:mt-0">
@@ -150,19 +150,19 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
     <div class="relative overflow-hidden">
         <!-- Background gradient -->
         <div class="absolute inset-0 bg-gradient-to-b from-transparent via-black to-black pointer-events-none"></div>
-        
+
         <!-- Grid background -->
         <div class="absolute inset-0 opacity-20">
             <div class="h-full w-full" style="background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 40px 40px;"></div>
         </div>
-        
+
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
             <div class="text-center">
                 <!-- Badge -->
                 <div class="inline-flex items-center rounded-full border border-gray-800 bg-gray-900/50 backdrop-blur-sm px-4 py-2 text-sm mb-8">
                     <span class="text-gray-300">🚀 Production ready Django application</span>
                 </div>
-                
+
                 <!-- Main heading -->
                 <h1 class="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8">
                     <span class="block">The Django</span>
@@ -170,13 +170,13 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                         Framework
                     </span>
                 </h1>
-                
+
                 <!-- Subtitle -->
                 <p class="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto mb-12 leading-relaxed">
                     Django provides everything you need to build fast, secure, and scalable web applications.
                     <span class="text-white">Used by thousands of developers worldwide.</span>
                 </p>
-                
+
                 <!-- CTA Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
                     <a href="{% url 'api_docs' %}" class="bg-white text-black px-8 py-4 rounded-md font-semibold hover:bg-gray-200 transition-colors duration-200 inline-flex items-center justify-center">
@@ -192,7 +192,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                         Try API
                     </a>
                 </div>
-                
+
                 <!-- Code example -->
                 <div class="max-w-2xl mx-auto">
                     <div class="bg-gray-925 border border-gray-800 rounded-lg p-6 text-left">
@@ -351,12 +351,12 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 	styleContent := `
     /* Custom styles for enhanced animations and effects */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-    
+
     body {
         font-family: 'Inter', sans-serif;
         scroll-behavior: smooth;
     }
-    
+
     `
 	if err := os.WriteFile(filepath.Join(staticPath, "css", "style.css"), []byte(styleContent), 0644); err != nil {
 		return fmt.Errorf("failed to create style.css: %v", err)
@@ -365,7 +365,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 	jsContent := `
     // Enhanced JavaScript for better interactivity
     console.log('Django project initialized with modern design!');
-    
+
     `
 	if err := os.WriteFile(filepath.Join(staticPath, "js", "main.js"), []byte(jsContent), 0644); err != nil {
 		return fmt.Errorf("failed to create main.js: %v", err)
@@ -385,7 +385,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
                 <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                 <span class="text-sm text-gray-300">API Documentation</span>
             </div>
-            
+
             <h1 class="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-gray-300 to-gray-500 bg-clip-text text-transparent">
                 Books API
             </h1>
@@ -523,7 +523,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
             <!-- Quick Start Guide -->
             <section class="bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-xl p-8">
                 <h2 class="text-2xl font-bold text-white mb-6">Quick Start Guide</h2>
-                
+
                 <div class="grid md:grid-cols-2 gap-6">
                     <div>
                         <h3 class="text-lg font-semibold text-white mb-3">1. Authentication</h3>
@@ -533,7 +533,7 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
   <span class="text-blue-400">-d</span> <span class="text-green-400">"username=your_username&password=your_password"</span></pre>
                         </div>
                     </div>
-                    
+
                     <div>
                         <h3 class="text-lg font-semibold text-white mb-3">2. Fetch Books</h3>
                         <div class="bg-black/50 border border-gray-700 rounded-lg p-4">
