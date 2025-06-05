@@ -2,12 +2,60 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [0.1.0] - 2024-02-13
+## [0.2.1] - 2025-06-04
 
 ### Added
+- Project name now appears in welcome page and documentation
+- Improved template structure with proper context passing
+- Enhanced API documentation page with better styling
+- Centralized layout for both welcome and API documentation pages
+
+### Fixed
+- Fixed project name not displaying in templates
+- Resolved URL namespace conflicts with REST framework
+- Improved template context handling
+- Fixed centering issues in template layouts
+
+## [0.2.0] - 2025-06-02
+
+### Added
+
+-   Dynamic progress bar based on actual completed steps
+-   Cross-platform build support for Windows, macOS, and Linux
+-   Comprehensive README.md documentation with detailed usage instructions
+-   Configuration file support at `~/.django-forge.json` for setting defaults
+-   Command-line argument support with flags (`-n`, `-v`, `--auto`, `--help`)
+-   Non-interactive mode with `--auto` flag for automated project creation
+
+### Improved
+
+-   Progress bar now accurately reflects project creation progress
+-   Enhanced user interface with better color schemes and styling
+-   Optimized progress bar animation and immediate visual feedback
+-   Better error handling and validation messages
+-   Improved form styling with custom placeholder colors
+-   Streamlined project creation flow without blank screens
+
+### Fixed
+
+-   Resolved compilation errors when building for different platforms
+-   Fixed blank screen issue after project configuration selection
+-   Corrected placeholder text color overlapping issues
+-   Improved theme configuration for better visual consistency
+
+### Technical
+
+-   Updated build process with proper cross-compilation support
+-   Enhanced Go module dependencies and version management
+-   Improved code organization and documentation
+-   Added comprehensive troubleshooting guide
+
+## [0.1.0] - 2025-05-03
+
+### Added
+
+-   Git repository initialization option
+-   Automatic `.gitignore` file creation for Django projects
 
 -   Initial release of Django CLI tool
 -   Project creation with customizable Django version
@@ -23,6 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Development server launch option
 
 ### Features
+
+-   Git initialization and .gitignore creation
 
 -   Interactive CLI interface with step-by-step project setup
 -   Progress tracking and status messages

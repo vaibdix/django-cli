@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"time"
+
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,35 +10,64 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type splashDoneMsg struct{}
-type tickMsg struct{}
-
 type Model struct {
-	step           step
-	projectName    string
-	djangoVersion  string
-	features       []string
-	spinner        spinner.Model
-	progress       progress.Model
-	progressStatus string
-	error          error
-	done           bool
-	doneChan       chan bool
-
-	inputForm      *huh.Form
-	versionForm    *huh.Form
-	featureForm    *huh.Form
-	templateForm   *huh.Form
-	appForm        *huh.Form
-	appTemplateForm *huh.Form
-	serverForm     *huh.Form
-	appName        string
-	createTemplates bool
+	step               step
+	projectName        string
+	djangoVersion      string
+	features           []string
+	spinner            spinner.Model
+	progress           progress.Model
+	progressStatus     string
+	error              error
+	done               bool
+	program            *tea.Program
+	mainForm           *huh.Form
+	devServerForm      *huh.Form
+	selectedOptions    []string
+	appName            string
+	createTemplates    bool
 	createAppTemplates bool
-	runServer      bool
-	stepMessages   []string 
-	splashCountdown int      
-	width          int       
+	runServer          bool
+	initializeGit      bool
+	setupTailwind      bool
+	setupRestFramework bool
+	startDevServer     bool
+	stepMessages       []string
+	splashCountdown    int
+	width              int
+	totalSteps         int
+	completedSteps     int
+}
+
+func (m *Model) calculateTotalSteps() int {
+	steps := 3 // Base steps (create directory, venv, Django)
+
+	if m.createTemplates {
+		steps++
+	}
+	if m.appName != "" {
+		steps++
+	}
+	if m.initializeGit {
+		steps++
+	}
+	if m.setupTailwind {
+		steps++
+	}
+	if m.setupRestFramework {
+		steps++
+	}
+	steps++ // For migrations (makemigrations and migrate)
+
+	return steps
+}
+
+func (m *Model) updateProgress(status string) {
+	m.completedSteps++
+	progress := float64(m.completedSteps) / float64(m.totalSteps)
+	if m.program != nil {
+		m.program.Send(projectProgressMsg{percent: progress, status: status})
+	}
 }
 
 func NewModel() *Model {
@@ -50,136 +79,95 @@ func NewModel() *Model {
 		MarginRight(2)
 
 	p := progress.New(
-		progress.WithGradient("#7D56F4", "#41E296"),
+		progress.WithDefaultGradient(),
 		progress.WithWidth(50),
-		progress.WithoutPercentage(),
 	)
 
 	m := &Model{
-		spinner:  s,
-		progress: p,
-		doneChan: make(chan bool),
-		step:     stepSplashScreen, 
-		splashCountdown: 3, 
-		features: []string{"vanilla"}, 
-		createTemplates: false,
-		createAppTemplates: false,
-		runServer: false,
+		spinner:            s,
+		progress:           p,
+		step:               stepSplashScreen,
+		splashCountdown:    3,
+		features:           []string{"vanilla"},
+		createTemplates:    true,
+		createAppTemplates: true,
+		runServer:          false,
+		initializeGit:      true,
+		progressStatus:     "Initializing...",
+		selectedOptions:    []string{"Global Templates", "Initialize Git"},
+		completedSteps:     0,
 	}
 
 	theme := huh.ThemeBase()
 	theme.Focused.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
 	theme.Focused.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
 	theme.Focused.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
+	theme.Focused.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
+	theme.Blurred.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
 	theme.Blurred.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
 	theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
 
-	m.inputForm = huh.NewForm(
+	m.mainForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Project name").
-				Description("Enter a name for your Django project").
+				Title("Project Name").
 				Value(&m.projectName).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("Project name cannot be empty")
-					}
-					return nil
-				}),
+				Validate(validateProjectName),
 		),
-	).WithTheme(theme)
-
-	m.versionForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Django version").
-				Description("Press Enter to use default version (5.2.0)").
-				Value(&m.djangoVersion),
+				Title("Django Version").
+				Description("Enter Django version (leave empty for latest stable)").
+				Placeholder("5.2.0").
+				Value(&m.djangoVersion).
+				Validate(validateDjangoVersion),
 		),
-	).WithTheme(theme)
-
-	m.featureForm = huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Setup Type").
-				Description("Choose your Django setup type").
-				Options(
-					huh.NewOption("Vanilla Setup 🍦", "vanilla"),
-				).
-				Value(&m.features[0]),
-		),
-	).WithTheme(theme)
-
-	m.appForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Create Django App").
-				Description("Enter app name (optional, press Enter to skip)").
+				Title("App Name (Optional)").
+				Description("Enter initial Django app name (leave empty to skip)").
 				Value(&m.appName),
 		),
-	).WithTheme(theme)
-
-	m.templateForm = huh.NewForm(
 		huh.NewGroup(
-			huh.NewSelect[bool]().
-				Title("Django Templates").
-				Description("Would you like to set up template directories?").
+			huh.NewMultiSelect[string]().
+				Title("Project Configuration").
+				Description("Select the features you want to include in your Django project").
 				Options(
-					huh.NewOption("Yes", true),
-					huh.NewOption("No", false),
+					huh.NewOption("Global Templates & Static Directories", "Global Templates").Selected(true),
+					huh.NewOption("App Templates (if creating an app)", "App Templates").Selected(true),
+					huh.NewOption("Initialize Git Repository", "Initialize Git").Selected(true),
+					huh.NewOption("Vanilla + Tailwind CSS v4", "Tailwind"),
+					huh.NewOption("Django REST Framework API", "REST Framework"),
 				).
-				Value(&m.createTemplates),
+				Limit(5).
+				Value(&m.selectedOptions),
 		),
 	).WithTheme(theme)
 
-	m.appTemplateForm = huh.NewForm(
+	m.devServerForm = huh.NewForm(
 		huh.NewGroup(
-			huh.NewSelect[bool]().
-				Title("App Templates").
-				Description("Would you like to set up templates for this app?").
-				Options(
-					huh.NewOption("Yes", true),
-					huh.NewOption("No", false),
-				).
-				Value(&m.createAppTemplates),
-		),
-	).WithTheme(theme)
-
-	m.serverForm = huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[bool]().
-				Title("Run Development Server").
-				Description("Would you like to start the development server?").
-				Options(
-					huh.NewOption("Yes", true),
-					huh.NewOption("No", false),
-				).
-				Value(&m.runServer),
+			huh.NewConfirm().
+				Title("Open and run in VS Code?").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&m.startDevServer),
 		),
 	).WithTheme(theme)
 
 	return m
 }
 
-func (m *Model) Init() tea.Cmd {
-	return tea.Batch(
-		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg { 
-			return tickMsg{}
-		}),
-		m.inputForm.Init(), 
-	)
+func (m *Model) SetProgram(p *tea.Program) {
+	m.program = p
 }
 
-func (m *Model) updateProgress() tea.Cmd {
-	return func() tea.Msg {
-		for {
-			select {
-			case <-m.doneChan:
-				return progressMsg(1.0)
-			default:
-				time.Sleep(100 * time.Millisecond)
-				return progressMsg(m.progress.Percent() + 0.1)
-			}
-		}
-	}
+func (m *Model) Init() tea.Cmd {
+	return tea.Batch(
+		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
+			return tickMsg{}
+		}),
+		m.spinner.Tick,
+	)
 }

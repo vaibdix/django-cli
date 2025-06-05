@@ -1,5 +1,4 @@
 package main
-
 type step int
 
 const (
@@ -7,11 +6,20 @@ const (
 	stepProjectName
 	stepDjangoVersion
 	stepFeatures
-	stepTemplates
-	stepSetup
-	stepCreateApp
-	stepAppTemplates    
+	stepTemplates    
+	stepSetup    
+	stepCreateApp    
+	stepAppTemplates 
 	stepServerOption
+	stepGitInit
+	stepDevServerPrompt 
+	stepComplete    
 )
-
-type progressMsg float64
+type projectProgressMsg struct {
+	percent float64
+	status  string
+}
+type projectCreationDoneMsg struct {
+	err error
+}
+type tickMsg struct{}
