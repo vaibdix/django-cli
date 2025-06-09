@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 func (m *Model) CreateProject() {
 	var currentErr error
+	errChan := make(chan error, 5) // Buffer for multiple potential errors
+	var wg sync.WaitGroup
+
 	defer func() {
 		if m.program != nil {
 			m.program.Send(projectCreationDoneMsg{err: currentErr})
@@ -39,12 +43,29 @@ func (m *Model) CreateProject() {
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Project directory created: %s", projectPath))
 	m.updateProgress("Creating project directory...")
 
-	if currentErr = m.createVirtualEnvironment(projectPath); currentErr != nil {
-		return
-	}
+	// Create virtual environment and install Django concurrently
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := m.createVirtualEnvironment(projectPath); err != nil {
+			errChan <- err
+			return
+		}
+		if err := m.installDjango(projectPath); err != nil {
+			errChan <- err
+			return
+		}
+	}()
 
-	if currentErr = m.installDjango(projectPath); currentErr != nil {
+	// Wait for virtual environment and Django installation before proceeding with project creation
+	wg.Wait()
+
+	// Check for any errors from the goroutine
+	select {
+	case err := <-errChan:
+		currentErr = err
 		return
+	default:
 	}
 
 	if currentErr = m.createDjangoProject(projectPath); currentErr != nil {
@@ -52,33 +73,88 @@ func (m *Model) CreateProject() {
 	}
 
 	settingsPath := filepath.Join(projectPath, m.projectName, "settings.py")
-	if currentErr = m.configureDjangoSettings(settingsPath); currentErr != nil {
-		return
-	}
 
-	if currentErr = m.setupProjectUrls(projectPath); currentErr != nil {
-		return
-	}
+	// Start concurrent tasks that don't depend on each other
+	var templateWg sync.WaitGroup
 
+	// Configure Django settings
+	templateWg.Add(1)
+	go func() {
+		defer templateWg.Done()
+		if err := m.configureDjangoSettings(settingsPath); err != nil {
+			errChan <- err
+		}
+	}()
+
+	// Setup project URLs
+	templateWg.Add(1)
+	go func() {
+		defer templateWg.Done()
+		if err := m.setupProjectUrls(projectPath); err != nil {
+			errChan <- err
+		}
+	}()
+
+	// Setup templates if enabled
 	if m.createTemplates {
-		if currentErr = m.setupGlobalTemplates(projectPath); currentErr != nil {
-			return
-		}
-		settingsContentBytes, err := os.ReadFile(settingsPath)
-		if err != nil {
-			currentErr = fmt.Errorf("failed to read settings.py for templates: %v", err)
-			return
-		}
-		settingsContent := updateSettingsForTemplates(string(settingsContentBytes))
-		if err := os.WriteFile(settingsPath, []byte(settingsContent), 0644); err != nil {
-			currentErr = fmt.Errorf("failed to write updated settings.py: %v", err)
-			return
-		}
-		m.stepMessages = append(m.stepMessages, "✅ Configured settings for global templates and static files.")
+		templateWg.Add(1)
+		go func() {
+			defer templateWg.Done()
+			if err := m.setupGlobalTemplates(projectPath); err != nil {
+				errChan <- err
+				return
+			}
+			settingsContentBytes, err := os.ReadFile(settingsPath)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to read settings.py for templates: %v", err)
+				return
+			}
+			settingsContent := updateSettingsForTemplates(string(settingsContentBytes))
+			if err := os.WriteFile(settingsPath, []byte(settingsContent), 0644); err != nil {
+				errChan <- fmt.Errorf("failed to write updated settings.py: %v", err)
+				return
+			}
+			m.stepMessages = append(m.stepMessages, "✅ Configured settings for global templates and static files.")
+		}()
+	}
+
+	// Initialize Git repository in parallel if enabled
+	if m.initializeGit {
+		templateWg.Add(1)
+		go func() {
+			defer templateWg.Done()
+			if err := m.initializeGitRepository(projectPath); err != nil {
+				errChan <- err
+			}
+		}()
+	}
+
+	// Setup Tailwind CSS in parallel if enabled
+	if m.setupTailwind {
+		templateWg.Add(1)
+		go func() {
+			defer templateWg.Done()
+			m.updateProgress("Setting up Tailwind CSS v4...")
+			if err := m.setupTailwindCSS(projectPath); err != nil {
+				errChan <- err
+			}
+		}()
+	}
+
+	// Wait for all concurrent tasks to complete
+	templateWg.Wait()
+
+	// Check for any errors from goroutines
+	select {
+	case err := <-errChan:
+		currentErr = err
+		return
+	default:
 	}
 
 	m.updateProgress("Finalizing settings configuration...")
 
+	// Create Django app if specified (must be done after settings are configured)
 	if m.appName != "" {
 		if currentErr = m.createDjangoApp(projectPath, settingsPath); currentErr != nil {
 			return
@@ -86,25 +162,14 @@ func (m *Model) CreateProject() {
 		m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Created Django app '%s' with templates and URLs.", m.appName))
 	}
 
-	if m.initializeGit {
-		if currentErr = m.initializeGitRepository(projectPath); currentErr != nil {
-			return
-		}
-	}
-
-	if m.setupTailwind {
-		m.updateProgress("Setting up Tailwind CSS v4...")
-		if currentErr = m.setupTailwindCSS(projectPath); currentErr != nil {
-			return
-		}
-	}
-
+	// Setup REST framework if enabled (must be done after app creation)
 	if m.setupRestFramework {
 		if currentErr = m.setupDjangoRestFramework(projectPath); currentErr != nil {
 			return
 		}
 	}
 
+	// Run migrations (must be done last)
 	if currentErr = m.runDjangoMigrations(projectPath); currentErr != nil {
 		return
 	}
