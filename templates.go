@@ -704,25 +704,6 @@ var (
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{% block title %}{{ project_name|default:"Django Site" }}{% endblock %}</title>
         <link rel="stylesheet" href="{% static 'css/style.css' %}">
-        <script>
-            tailwind.config = {
-                darkMode: 'class',
-                theme: {
-                    extend: {
-                        colors: {
-                            'gray-950': '#0a0a0a',
-                            'gray-925': '#111111',
-                            'gray-900': '#171717',
-                            'gray-850': '#1f1f1f',
-                        },
-                        fontFamily: {
-                            'geist': ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'sans-serif'],
-                            'geist-mono': ['Menlo', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', 'monospace'],
-                        }
-                    }
-                }
-            }
-        </script>
         {% block extra_head %}{% endblock %}
     </head>
     <body class="bg-black text-white font-geist antialiased">
@@ -730,27 +711,31 @@ var (
         <header class="sticky top-0 z-50 backdrop-blur-xl bg-black/80 border-b border-gray-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
-                    <div class="flex items-center space-x-3">
-                            <a href="http://localhost:8000" class="flex items-center space-x-2">
+                    <!-- Left side: Logo + Project name -->
+                    <div class="flex items-center space-x-2">
+                        <a href="http://localhost:8000" class="flex items-center space-x-2">
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect width="32" height="32" rx="8" fill="white"/>
                                 <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                             <h1 class="text-xl font-semibold">{{ project_name|default:"Django" }}</h1>
-                        </div>
+                        </a>
                     </div>
 
-                    <nav class="hidden md:flex items-center space-x-8">
-                        <a href="/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Home</a>
-                        <a href="/admin/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Admin</a>
-                    </nav>
+                    <!-- Right side: Navigation -->
+                    <div class="flex items-center space-x-8">
+                        <nav class="hidden md:flex items-center space-x-8">
+                            <a href="/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Home</a>
+                            <a href="/admin/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Admin</a>
+                        </nav>
 
-                    <!-- Mobile menu button -->
-                    <button class="md:hidden p-2 rounded-md hover:bg-gray-800 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
+                        <!-- Mobile menu button -->
+                        <button class="md:hidden p-2 rounded-md hover:bg-gray-800 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -917,53 +902,39 @@ var (
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{% block title %}{{ project_name|default:"Django Site" }}{% endblock %}</title>
         <link rel="stylesheet" href="{% static 'css/style.css' %}">
-        <script>
-            tailwind.config = {
-                darkMode: 'class',
-                theme: {
-                    extend: {
-                        colors: {
-                            'gray-950': '#0a0a0a',
-                            'gray-925': '#111111',
-                            'gray-900': '#171717',
-                            'gray-850': '#1f1f1f',
-                        },
-                        fontFamily: {
-                            'geist': ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'sans-serif'],
-                            'geist-mono': ['Menlo', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', 'monospace'],
-                        }
-                    }
-                }
-            }
-        </script>
         {% block extra_head %}{% endblock %}
     </head>
+
     <body class="bg-black text-white font-geist antialiased">
         <!-- Header -->
         <header class="sticky top-0 z-50 backdrop-blur-xl bg-black/80 border-b border-gray-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
-                    <div class="flex items-center space-x-3">
-                            <a href="http://localhost:8000" class="flex items-center space-x-2">
+                    <!-- Left side: Logo + Project name -->
+                    <div class="flex items-center space-x-2">
+                        <a href="http://localhost:8000" class="flex items-center space-x-2">
                             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect width="32" height="32" rx="8" fill="white"/>
                                 <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                             <h1 class="text-xl font-semibold">{{ project_name|default:"Django" }}</h1>
-                        </div>
+                        </a>
                     </div>
 
-                    <nav class="hidden md:flex items-center space-x-8">
-                        <a href="/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Home</a>
-                        <a href="/admin/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Admin</a>
-                    </nav>
+                    <!-- Right side: Navigation -->
+                    <div class="flex items-center space-x-8">
+                        <nav class="hidden md:flex items-center space-x-8">
+                            <a href="/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Home</a>
+                            <a href="/admin/" class="text-gray-300 hover:text-white transition-colors duration-200 text-sm">Admin</a>
+                        </nav>
 
-                    <!-- Mobile menu button -->
-                    <button class="md:hidden p-2 rounded-md hover:bg-gray-800 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
+                        <!-- Mobile menu button -->
+                        <button class="md:hidden p-2 rounded-md hover:bg-gray-800 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
