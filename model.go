@@ -35,6 +35,7 @@ type Model struct {
 	initializeGit      bool
 	setupTailwind      bool
 	setupRestFramework bool
+	useGlobalTemplates bool
 	startDevServer     bool
 	stepMessages       []string
 	splashCountdown    int

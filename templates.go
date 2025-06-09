@@ -1232,7 +1232,7 @@ var (
     <section class="mb-16">
         <div class="mb-8">
             <h2 class="text-3xl font-bold text-white mb-3">Authentication</h2>
-            <p class="text-gray-400">Secure access to protected endpoints</p>
+            <p>Secure access to protected endpoints</p>
         </div>
 
         <div class="space-y-6">
@@ -1273,7 +1273,7 @@ var (
         <div class="grid md:grid-cols-2 gap-6">
             <div>
                 <h3 class="text-lg font-semibold text-white mb-3">1. Authentication</h3>
-                <div class="bg-black/50 border border-gray-700 rounded-lg p-4">
+                <div class="bg-black/50 border border-gray-800 rounded-lg p-4">
                     <pre class="text-sm text-gray-300 font-mono overflow-x-auto">
 <span class="text-purple-400">curl</span> <span class="text-blue-400">-X POST</span> http://localhost:8000/api-auth/login/ \
   <span class="text-blue-400">-d</span> <span class="text-green-400">"username=your_username&password=your_password"</span></pre>
@@ -1304,7 +1304,163 @@ func getTemplateContent(templateType string, config map[string]bool) string {
 			}
 			return tailwindBaseTemplateNoApi
 		}
-		return basicBaseTemplate
+		// For basic template, check if using global templates
+		if config["global_templates"] {
+			return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ project_name|default:"Django Site" }}{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="32" height="32" rx="8" fill="white"/>
+                        <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>{{ project_name|default:"Django" }}</h1>
+                </a>
+
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/admin/">Admin</a>
+                </nav>
+
+                <button class="mobile-menu-button">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div>
+                    <div class="footer-brand">
+                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="8" fill="white"/>
+                            <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>{{ project_name|default:"Django Site" }}</span>
+                    </div>
+                    <p class="footer-description">The Django framework that gives you everything you need to build full-stack web applications.</p>
+                </div>
+
+                <div class="footer-links">
+                    <h3>Resources</h3>
+                    <ul>
+                        <li><a href="/admin/">Admin Panel</a></li>
+                        <li><a href="https://docs.djangoproject.com/">Django Docs</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© {% now "Y" %} {{ project_name|default:"Django Site" }}. All rights reserved.</p>
+                <div class="footer-bottom-links">
+                    <a href="#" class="footer-links">Privacy</a>
+                    <a href="#" class="footer-links">Terms</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>`
+		}
+		// If not using global templates, include CSS inline
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ project_name|default:"Django Site" }}{% endblock %}</title>
+    <style>
+    ` + getBaseCSS() + `
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="32" height="32" rx="8" fill="white"/>
+                        <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>{{ project_name|default:"Django" }}</h1>
+                </a>
+
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/admin/">Admin</a>
+                </nav>
+
+                <button class="mobile-menu-button">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div>
+                    <div class="footer-brand">
+                        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="8" fill="white"/>
+                            <path d="M12 8L20 16L12 24" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>{{ project_name|default:"Django Site" }}</span>
+                    </div>
+                    <p class="footer-description">The Django framework that gives you everything you need to build full-stack web applications.</p>
+                </div>
+
+                <div class="footer-links">
+                    <h3>Resources</h3>
+                    <ul>
+                        <li><a href="/admin/">Admin Panel</a></li>
+                        <li><a href="https://docs.djangoproject.com/">Django Docs</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© {% now "Y" %} {{ project_name|default:"Django Site" }}. All rights reserved.</p>
+                <div class="footer-bottom-links">
+                    <a href="#" class="footer-links">Privacy</a>
+                    <a href="#" class="footer-links">Terms</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>`
 	case "index.html":
 		if config["tailwind"] {
 			if config["api"] {
@@ -1312,7 +1468,199 @@ func getTemplateContent(templateType string, config map[string]bool) string {
 			}
 			return tailwindIndexTemplateNoApi
 		}
-		return basicIndexTemplate
+		// For basic template, check if using global templates
+		if config["global_templates"] {
+			return `{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ project_name }} - Home{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-gradient"></div>
+    <div class="hero-grid"></div>
+
+    <div class="hero-content">
+        <div class="badge">
+            <span>🚀 Production ready Django application</span>
+        </div>
+
+        <h1 class="hero-title">
+            <span>The Django</span>
+            <span class="gradient-text">Framework</span>
+        </h1>
+
+        <p class="hero-subtitle">
+            Django provides everything you need to build fast, secure, and scalable web applications.
+            <strong>Used by thousands of developers worldwide.</strong>
+        </p>
+
+        <div class="button-group">
+            <a href="https://docs.djangoproject.com/" class="button button-primary">
+                Get Started
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </a>
+            <a href="/admin/" class="button button-secondary">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Admin Panel
+            </a>
+        </div>
+
+        <div class="code-example">
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots">
+                        <div class="window-dot dot-red"></div>
+                        <div class="window-dot dot-yellow"></div>
+                        <div class="window-dot dot-green"></div>
+                    </div>
+                    <span class="window-title">Django Project</span>
+                </div>
+                <pre class="code-content"><code><span class="code-keyword">from</span> <span class="code-builtin">django.shortcuts</span> <span class="code-keyword">import</span> <span class="code-builtin">render</span>
+
+<span class="code-keyword">def</span> <span class="code-builtin">home</span>(<span class="code-param">request</span>):
+    <span class="code-keyword">return</span> <span class="code-builtin">render</span>(request, <span class="code-string">'index.html'</span>)</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="features-header">
+        <h2 class="features-title">Why Django?</h2>
+        <p class="features-subtitle">
+            Built for speed, security, and scalability. Trusted by startups and enterprises.
+        </p>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <h3 class="feature-title">Fast Development</h3>
+            <p class="feature-description">Django's batteries-included approach means you can build full-featured applications quickly without reinventing the wheel.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon security">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h3 class="feature-title">Security First</h3>
+            <p class="feature-description">Built-in protection against common security threats like SQL injection, CSRF, and XSS attacks.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}`
+		}
+		// If not using global templates, include CSS inline
+		return `{% extends 'base.html' %}
+
+{% block title %}{{ project_name }} - Home{% endblock %}
+
+{% block extra_head %}
+<style>
+` + getHomeCSS() + `
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-gradient"></div>
+    <div class="hero-grid"></div>
+
+    <div class="hero-content">
+        <div class="badge">
+            <span>🚀 Production ready Django application</span>
+        </div>
+
+        <h1 class="hero-title">
+            <span>The Django</span>
+            <span class="gradient-text">Framework</span>
+        </h1>
+
+        <p class="hero-subtitle">
+            Django provides everything you need to build fast, secure, and scalable web applications.
+            <strong>Used by thousands of developers worldwide.</strong>
+        </p>
+
+        <div class="button-group">
+            <a href="https://docs.djangoproject.com/" class="button button-primary">
+                Get Started
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </a>
+            <a href="/admin/" class="button button-secondary">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Admin Panel
+            </a>
+        </div>
+
+        <div class="code-example">
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots">
+                        <div class="window-dot dot-red"></div>
+                        <div class="window-dot dot-yellow"></div>
+                        <div class="window-dot dot-green"></div>
+                    </div>
+                    <span class="window-title">Django Project</span>
+                </div>
+                <pre class="code-content"><code><span class="code-keyword">from</span> <span class="code-builtin">django.shortcuts</span> <span class="code-keyword">import</span> <span class="code-builtin">render</span>
+
+<span class="code-keyword">def</span> <span class="code-builtin">home</span>(<span class="code-param">request</span>):
+    <span class="code-keyword">return</span> <span class="code-builtin">render</span>(request, <span class="code-string">'index.html'</span>)</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="features-header">
+        <h2 class="features-title">Why Django?</h2>
+        <p class="features-subtitle">
+            Built for speed, security, and scalability. Trusted by startups and enterprises.
+        </p>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <h3 class="feature-title">Fast Development</h3>
+            <p class="feature-description">Django's batteries-included approach means you can build full-featured applications quickly without reinventing the wheel.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon security">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h3 class="feature-title">Security First</h3>
+            <p class="feature-description">Built-in protection against common security threats like SQL injection, CSRF, and XSS attacks.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}`
 	case "api-docs.html":
 		if config["tailwind"] {
 			return tailwindApiDocsTemplate
@@ -1324,6 +1672,8 @@ func getTemplateContent(templateType string, config map[string]bool) string {
 }
 
 func (m *Model) setupGlobalTemplates(projectPath string) error {
+	m.useGlobalTemplates = true // Set this to true since we're setting up global templates
+
 	globalTemplatesPath := filepath.Join(projectPath, "templates")
 	if err := os.MkdirAll(globalTemplatesPath, 0755); err != nil {
 		return fmt.Errorf("failed to create global templates directory: %v", err)
@@ -1338,8 +1688,9 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 
 	// Create configuration map for template selection
 	config := map[string]bool{
-		"tailwind": m.setupTailwind,
-		"api":      m.setupRestFramework,
+		"tailwind":         m.setupTailwind,
+		"api":              m.setupRestFramework,
+		"global_templates": m.useGlobalTemplates,
 	}
 
 	// Write base.html
@@ -1352,6 +1703,17 @@ func (m *Model) setupGlobalTemplates(projectPath string) error {
 	indexContent := getTemplateContent("index.html", config)
 	if err := os.WriteFile(filepath.Join(globalTemplatesPath, "index.html"), []byte(indexContent), 0644); err != nil {
 		return fmt.Errorf("failed to create index.html: %v", err)
+	}
+
+	// Write CSS files if using basic templates (non-Tailwind) and global templates is enabled
+	if !m.setupTailwind && m.useGlobalTemplates {
+		if err := os.WriteFile(filepath.Join(staticPath, "css", "base.css"), []byte(getBaseCSS()), 0644); err != nil {
+			return fmt.Errorf("failed to create base.css: %v", err)
+		}
+
+		if err := os.WriteFile(filepath.Join(staticPath, "css", "home.css"), []byte(getHomeCSS()), 0644); err != nil {
+			return fmt.Errorf("failed to create home.css: %v", err)
+		}
 	}
 
 	// Write api-docs.html if REST framework is enabled
@@ -1456,4 +1818,491 @@ urlpatterns = [
 	}
 
 	return nil
+}
+
+// getBaseCSS returns the base CSS styles for non-Tailwind templates
+func getBaseCSS() string {
+	return `/* Using base with vanilla CSS */
+:root {
+    --color-white: #ffffff;
+    --color-black: #000000;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    background-color: var(--color-black);
+    color: var(--color-white);
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--color-gray-800);
+}
+
+.container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--color-white);
+}
+
+.logo svg {
+    width: 32px;
+    height: 32px;
+}
+
+.logo h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+nav {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    nav {
+        display: flex;
+        gap: 2rem;
+    }
+}
+
+nav a {
+    color: var(--color-gray-300);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+}
+
+nav a:hover {
+    color: var(--color-white);
+}
+
+.mobile-menu-button {
+    display: block;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--color-white);
+    cursor: pointer;
+}
+
+@media (min-width: 768px) {
+    .mobile-menu-button {
+        display: none;
+    }
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    border-top: 1px solid var(--color-gray-800);
+    margin-top: 5rem;
+    padding: 4rem 0;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .footer-content {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.footer-brand svg {
+    width: 24px;
+    height: 24px;
+}
+
+.footer-brand span {
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.footer-description {
+    color: var(--color-gray-400);
+    max-width: 24rem;
+    margin-bottom: 1.5rem;
+}
+
+.footer-links h3 {
+    color: var(--color-white);
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.footer-links ul {
+    list-style: none;
+}
+
+.footer-links li:not(:last-child) {
+    margin-bottom: 0.75rem;
+}
+
+.footer-links a {
+    color: var(--color-gray-400);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+}
+
+.footer-links a:hover {
+    color: var(--color-white);
+}
+
+.footer-bottom {
+    border-top: 1px solid var(--color-gray-800);
+    margin-top: 3rem;
+    padding-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .footer-bottom {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}
+
+.footer-bottom p {
+    color: var(--color-gray-400);
+    font-size: 0.875rem;
+}
+
+.footer-bottom-links {
+    display: flex;
+    gap: 1.5rem;
+}
+`
+}
+
+// getHomeCSS returns the home page specific CSS styles for non-Tailwind templates
+func getHomeCSS() string {
+	return `/* Home page specific styles */
+.hero {
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent, var(--color-black));
+    pointer-events: none;
+}
+
+.hero-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.2;
+    background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.hero-content {
+    position: relative;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 5rem 1rem 8rem;
+    text-align: center;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-gray-800);
+    background-color: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(4px);
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    color: var(--color-gray-300);
+    margin-bottom: 2rem;
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+    .hero-title {
+        font-size: 4rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .hero-title {
+        font-size: 6rem;
+    }
+}
+
+.gradient-text {
+    background: linear-gradient(to right, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: var(--color-gray-400);
+    max-width: 48rem;
+    margin: 0 auto 3rem;
+    line-height: 1.625;
+}
+
+@media (min-width: 768px) {
+    .hero-subtitle {
+        font-size: 1.5rem;
+    }
+}
+
+.hero-subtitle strong {
+    color: var(--color-white);
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 4rem;
+}
+
+@media (min-width: 640px) {
+    .button-group {
+        flex-direction: row;
+    }
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.button-primary {
+    background-color: var(--color-white);
+    color: var(--color-black);
+}
+
+.button-primary:hover {
+    background-color: var(--color-gray-300);
+}
+
+.button-secondary {
+    border: 1px solid var(--color-gray-700);
+    color: var(--color-white);
+}
+
+.button-secondary:hover {
+    border-color: var(--color-gray-600);
+    background-color: rgba(55, 65, 81, 0.1);
+}
+
+.button svg {
+    width: 1rem;
+    height: 1rem;
+    margin-left: 0.5rem;
+}
+
+.code-example {
+    max-width: 42rem;
+    margin: 0 auto;
+}
+
+.code-window {
+    background-color: var(--color-gray-900);
+    border: 1px solid var(--color-gray-800);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: left;
+}
+
+.code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.window-dots {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.window-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+}
+
+.dot-red { background-color: #ef4444; }
+.dot-yellow { background-color: #f59e0b; }
+.dot-green { background-color: #10b981; }
+
+.window-title {
+    color: var(--color-gray-400);
+    font-size: 0.875rem;
+}
+
+.code-content {
+    font-family: 'Menlo', 'Monaco', 'Lucida Console', monospace;
+    font-size: 0.875rem;
+    color: var(--color-gray-300);
+}
+
+.code-keyword { color: #c084fc; }
+.code-builtin { color: #60a5fa; }
+.code-string { color: #34d399; }
+.code-param { color: #fb923c; }
+
+.features {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 6rem 1rem;
+}
+
+.features-header {
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.features-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--color-white);
+    margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+    .features-title {
+        font-size: 2.25rem;
+    }
+}
+
+.features-subtitle {
+    font-size: 1.25rem;
+    color: var(--color-gray-400);
+    max-width: 42rem;
+    margin: 0 auto;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.feature-card {
+    border: 1px solid var(--color-gray-800);
+    background-color: var(--color-gray-900);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    transition: border-color 0.2s;
+}
+
+.feature-card:hover {
+    border-color: var(--color-gray-700);
+}
+
+.feature-icon {
+    width: 3rem;
+    height: 3rem;
+    background-color: rgba(59, 130, 246, 0.1);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.feature-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    color: #60a5fa;
+}
+
+.feature-icon.security {
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+.feature-icon.security svg {
+    color: #34d399;
+}
+
+.feature-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-white);
+    margin-bottom: 0.75rem;
+}
+
+.feature-description {
+    color: var(--color-gray-400);
+}`
 }
