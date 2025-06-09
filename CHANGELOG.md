@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2025-06-10
+
+### Added
+- Support for Tailwind CSS v4 integration
+- Django REST Framework setup option
+- VS Code integration with automatic project opening
+- Multiple terminal support for development servers
+- Enhanced project templates with modern UI components
+
+### Improved
+- Better error handling and validation messages
+- Streamlined virtual environment setup with uv
+- More detailed progress tracking during setup
+- Enhanced template context handling
+- Modern landing page with Tailwind CSS styling
+
+### Fixed
+- Virtual environment path issues on Windows
+- Template context injection reliability
+- Project name validation edge cases
+- Terminal command execution on different platforms
+
 ## [0.2.1] - 2025-06-04
 
 ### Added
