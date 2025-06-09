@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -65,7 +66,13 @@ func main() {
 	}
 
 	if args.Install {
-		if err := installOnWindows(); err != nil {
+		var err error
+		if runtime.GOOS == "windows" {
+			err = installOnWindows()
+		} else {
+			err = installOnUnix()
+		}
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Installation failed: %v\n", err)
 			os.Exit(1)
 		}
