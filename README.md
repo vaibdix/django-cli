@@ -70,6 +70,22 @@ The generated project includes:
 5. Restart your terminal
 6. You can now use `django-cli` from any directory!
 
+### Linux/macOS Installation
+
+1. Download the latest `django-cli-linux` from the releases page
+2. Open terminal and navigate to the download directory
+3. Make the binary executable:
+   ```bash
+   chmod +x django-cli-linux
+   ```
+4. Run the installation command:
+   ```bash
+   sudo ./django-cli-linux --install
+   ```
+5. Restart your terminal
+6. You can now use `django-cli` from any directory!
+
+
 ### Build from Source
 
 ```bash
@@ -97,16 +113,6 @@ GOOS=windows GOARCH=amd64 go build -o django-cli-windows.exe
 ./django-cli
 ```
 
-The interactive mode will guide you through:
-
-1. **Project Name**: Enter a unique name for your Django project
-2. **Django Version**: Specify version (e.g., "5.2.0") or leave empty for latest
-3. **App Name**: Optionally create an initial Django app
-4. **Project Configuration**: Select features using multi-select:
-    - Global Templates & Static Directories
-    - App Templates (if creating an app)
-    - Auto-start Development Server
-    - Initialize Git Repository
 
 ### Command Line Arguments
 
@@ -132,12 +138,13 @@ The interactive mode will guide you through:
 
 ### Available Flags
 
-| Flag        | Short | Description                         |
-| ----------- | ----- | ----------------------------------- |
-| `--name`    | `-n`  | Project name                        |
-| `--version` | `-v`  | Django version (default: latest)    |
-| `--auto`    |       | Skip interactive mode with defaults |
-| `--help`    | `-h`  | Show help message                   |
+| Flag        | Short | Description                             |
+| ----------- | ----- | --------------------------------------- |
+| `--install` |       | Install project to access from anywhere |
+| `--name`    | `-n`  | Project name                            |
+| `--version` | `-v`  | Django version (default: latest)        |
+| `--auto`    |       | Skip interactive mode with defaults     |
+| `--help`    | `-h`  | Show help message                       |
 
 ## Project Structure Created
 
@@ -189,21 +196,6 @@ myproject/
 -   `github.com/charmbracelet/huh`: Form components
 -   `github.com/charmbracelet/lipgloss`: Styling
 
-## Configuration
-
-The tool supports a configuration file at `~/.django-forge.json` for setting defaults:
-
-```json
-{
-    "default_django_version": "latest",
-    "default_features": ["vanilla"],
-    "create_templates": true,
-    "create_app_templates": true,
-    "run_server": true,
-    "initialize_git": true,
-    "prefer_uv": true
-}
-```
 
 ## Features in Detail
 
@@ -247,41 +239,9 @@ Automatically configured for development:
 -   **Directory exists**: Prevents overwriting existing projects
 -   **Django version format**: Validates version format (e.g., "4.2.0")
 
-## Development
 
-### Building
-
-```bash
-# Development build
-go run .
-
-# Production build
-go build -o django-cli
-
-# Cross-platform builds
-GOOS=linux GOARCH=amd64 go build -o django-cli-linux
-GOOS=windows GOARCH=amd64 go build -o django-cli-windows.exe
-GOOS=darwin GOARCH=amd64 go build -o django-cli-macos
-```
-
-### Testing
-
-```bash
-# Test with flags
-./django-cli -n testproject -v 5.0
-
-# Test interactive mode
-./django-cli
-```
 
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contributing
-
-[Add contribution guidelines here]
-
----
-
-**Django Forge CLI** - Crafting your Django project, one step at a time. 🚀
