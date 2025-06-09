@@ -1,247 +1,196 @@
-# Django Forge CLI 🚀
+# Django Forge CLI
 
-An interactive command-line tool for creating Django projects with modern development practices and automated setup.
+[![Go Report Card](https://goreportcard.com/badge/github.com/yourusername/django-cli)](https://goreportcard.com/report/github.com/yourusername/django-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Django Forge CLI is an interactive command-line tool that streamlines Django project creation and setup. It provides a modern, intuitive interface for creating Django projects with best practices baked in.
+
+![Django Forge CLI Demo](demo.gif)
 
 ## Features
 
--   **Dynamic Progress Bar**: Provides real-time feedback on the project setup progress, adapting to the selected features and steps.
-
-### 🎯 Interactive Project Setup
-
--   **Project Name Validation**: Ensures valid project names and prevents conflicts
--   **Django Version Selection**: Choose specific Django versions or use latest stable
--   **App Creation**: Optionally create an initial Django app during setup
--   **Multi-select Configuration**: Choose features you want in your project
-
-### 📁 Project Structure & Templates
-
--   **Global Templates**: Creates `templates/` directory with base.html and index.html
--   **Static Files**: Sets up `static/css/` and `static/js/` directories with starter files
--   **App Templates**: Creates app-specific template directories when creating apps
--   **Django Settings**: Automatically configures `settings.py` for templates and static files
-
-### 🔧 Development Environment
-
--   **Virtual Environment**: Automatically creates `.venv` using `uv` (preferred) or `python -m venv`
--   **Django Installation**: Installs specified Django version and `django-browser-reload`
--   **Hot Reload**: Configures `django-browser-reload` for automatic browser refresh during development
--   **Development Server**: Optionally starts the Django development server after setup
-
-### 🗂️ Version Control
-
--   **Git Initialization**: Optionally initializes a Git repository
--   **Gitignore**: Creates a comprehensive `.gitignore` file for Django projects
-
-### 🎨 User Experience
-
--   **Dynamic Progress Bar**: Accurately tracks and displays project creation progress based on selected features and completed steps.
--   **Animated Progress Bar**: Visual feedback during project creation
--   **Splash Screen**: Welcome screen with countdown
--   **Error Handling**: Comprehensive validation and error messages
--   **Cross-platform**: Works on macOS, Linux, and Windows
-
-### 🎨 User Interface Improvements
-
-- **Welcome Page**: Displays project name and quick access links
-- **API Documentation**: Clean, organized display of API endpoints
-- **Responsive Design**: Properly centered layouts with Tailwind CSS
-- **Template Context**: Automatic project name injection in templates
-
-### 📚 API Documentation
-
-The generated project includes:
-- Interactive API documentation page at `/api-docs/`
-- Welcome page with project name at root URL `/`
-- Quick links to admin interface and API endpoints
-- Clear display of available API endpoints and authentication routes
+- 🚀 Interactive project setup with a beautiful TUI
+- ⚡️ Lightning-fast project creation with uv for dependency management
+- 🎨 Built-in Tailwind CSS integration
+- 🔄 Django REST Framework setup option
+- 📝 Automatic VS Code configuration
+- 🛠️ Multiple development server support
+- 🎯 Git repository initialization
+- 🔧 Customizable project templates
+- 💻 Cross-platform support (Windows, macOS, Linux)
 
 ## Installation
 
-### Windows Installation
+### Prerequisites
 
-1. Download the latest `django-cli-windows.exe` from the releases page
-2. Open PowerShell as Administrator
-3. Navigate to the download directory
-4. Run the installation command:
-   ```powershell
-   # Run the installer
-   .\django-cli-windows.exe --install
-   ```
-5. Restart your terminal
-6. You can now use `django-cli` from any directory!
+- Go 1.21 or higher
+- Python 3.8 or higher
 
-### Linux/macOS Installation
+### Using Binary Releases
 
-1. Download the latest `django-cli-linux` from the releases page
-2. Open terminal and navigate to the download directory
-3. Make the binary executable:
-   ```bash
-   chmod +x django-cli-linux
-   ```
-4. Run the installation command:
-   ```bash
-   sudo ./django-cli-linux --install
-   ```
-5. Restart your terminal
-6. You can now use `django-cli` from any directory!
+Download the latest binary for your platform from the [releases page](https://github.com/yourusername/django-cli/releases).
 
+#### Windows
+```bash
+# Download and install globally
+django-cli-windows.exe --install
+```
 
-### Build from Source
+#### macOS/Linux
+```bash
+# Make the binary executable
+chmod +x django-cli-linux
+
+# Move to a directory in your PATH
+sudo mv django-cli-linux /usr/local/bin/django-cli
+```
+
+### Building from Source
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/yourusername/django-cli.git
 cd django-cli
 
-# Build for your platform
-# Linux/macOS:
+# Build the binary
 go build -o django-cli
 
-# Windows:
-go build -o django-cli.exe
-
-# Cross-compile for Windows from macOS/Linux:
-GOOS=windows GOARCH=amd64 go build -o django-cli-windows.exe
+# Optional: Install globally
+mv django-cli /usr/local/bin/
 ```
 
 ## Usage
 
-### Interactive Mode (Recommended)
+### Interactive Mode
+
+Simply run the CLI without any arguments for interactive mode:
 
 ```bash
-# Run the interactive CLI
-./django-cli
+django-cli
 ```
 
-
-### Command Line Arguments
+### Command-line Arguments
 
 ```bash
+django-cli [flags]
+
+Flags:
+  -n, --name string      Project name
+  -v, --version string   Django version (default: latest)
+  --auto                 Skip interactive mode with defaults
+  --install             Install CLI globally (Windows only)
+  -h, --help            Show this help message
+```
+
+### Examples
+
+```bash
+# Interactive mode
+django-cli
+
 # Set project name
-./django-cli -name myproject
-./django-cli -n myproject
+django-cli -n myproject
 
-# Set Django version
-./django-cli -version 4.2.7
-./django-cli -v 4.2.7
+# Set name and Django version
+django-cli -n myproject -v 4.2.7
 
-# Combine flags
-./django-cli -n myproject -v 5.2.0
-
-# Non-interactive mode with defaults
-./django-cli --auto -n myproject
-
-# Show help
-./django-cli -h
-./django-cli --help
+# Non-interactive with defaults
+django-cli --auto -n myproject
 ```
 
-### Available Flags
+## Configuration
 
-| Flag        | Short | Description                             |
-| ----------- | ----- | --------------------------------------- |
-| `--install` |       | Install project to access from anywhere |
-| `--name`    | `-n`  | Project name                            |
-| `--version` | `-v`  | Django version (default: latest)        |
-| `--auto`    |       | Skip interactive mode with defaults     |
-| `--help`    | `-h`  | Show help message                       |
+Django CLI creates a configuration file at `~/.django-forge.json` to store your preferences. You can modify this file to set default values for:
 
-## Project Structure Created
+- Django version
+- Project structure
+- Template settings
+- Development server configuration
+- VS Code settings
+
+Example configuration:
+
+```json
+{
+  "defaultDjangoVersion": "4.2.7",
+  "defaultProjectStructure": "recommended",
+  "useTailwind": true,
+  "useRestFramework": true,
+  "autoOpenVSCode": true
+}
+```
+
+## Project Structure
+
+The generated project follows modern Django best practices:
 
 ```
 myproject/
-├── .venv/                    # Virtual environment
-├── .git/                     # Git repository (optional)
-├── .gitignore               # Django-specific gitignore
-├── manage.py                # Django management script
-├── myproject/               # Django project directory
+├── .vscode/                # VS Code configuration
+├── manage.py
+├── myproject/             # Project configuration
 │   ├── __init__.py
-│   ├── settings.py          # Configured with templates and middleware
-│   ├── urls.py              # Updated to include app URLs (if app created)
-│   ├── wsgi.py
-│   └── asgi.py
-├── templates/               # Global templates (optional)
-│   ├── base.html            # Base template with django-browser-reload
-│   └── index.html           # Homepage template
-├── static/                  # Static files (optional)
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── apps/                  # Django applications
+├── templates/            # Global templates
+│   ├── base.html
+│   └── index.html
+├── static/              # Static files
 │   ├── css/
-│   │   └── style.css        # Basic styling
 │   └── js/
-│       └── main.js          # JavaScript starter
-└── myapp/                   # Django app (optional)
-    ├── __init__.py
-    ├── admin.py
-    ├── apps.py
-    ├── models.py
-    ├── tests.py
-    ├── views.py             # With homepage view
-    ├── urls.py              # App URL configuration
-    └── templates/           # App-specific templates (optional)
-        └── myapp/
-            └── index.html
+└── requirements.txt     # Project dependencies
 ```
 
-## Dependencies
 
-### System Requirements
+## Development
 
--   **Go**: 1.23.0 or later
--   **Python**: 3.8 or later (`python3` or `python` in PATH)
--   **uv** (optional but recommended): For faster virtual environment and package management
+### Requirements
 
-### Go Dependencies
+- Go 1.21+
+- Make (optional, for using Makefile)
 
--   `github.com/charmbracelet/bubbletea`: TUI framework
--   `github.com/charmbracelet/bubbles`: TUI components
--   `github.com/charmbracelet/huh`: Form components
--   `github.com/charmbracelet/lipgloss`: Styling
+### Setup
 
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/django-cli.git
 
-## Features in Detail
+# Install dependencies
+go mod download
 
-### Django Browser Reload
+# Run tests
+go test ./...
 
-Automatically configured for development:
+# Build for development
+go build
+```
 
--   Added to `INSTALLED_APPS`
--   Middleware configured
--   Template tags included in base template
--   Enables automatic browser refresh when files change
+### Contributing
 
-### Template Configuration
-
--   Global templates directory added to `DIRS` in `settings.py`
--   Static files configuration updated
--   Base template includes:
-    -   Responsive meta tags
-    -   CSS and JavaScript loading
-    -   Django browser reload integration
-    -   Block structure for inheritance
-
-### Git Integration
-
--   Initializes Git repository
--   Creates comprehensive `.gitignore` for Django projects
--   Excludes virtual environment, cache files, database, and IDE files
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Python not found**: Ensure `python3` or `python` is in your PATH
-2. **Permission denied**: Make the binary executable with `chmod +x django-cli`
-3. **Virtual environment creation fails**: Install `python3-venv` on Ubuntu/Debian
-4. **uv not found**: Install uv with `pip install uv` or use system Python
-
-### Error Messages
-
--   **Project name validation**: Checks for invalid characters and Python reserved words
--   **Directory exists**: Prevents overwriting existing projects
--   **Django version format**: Validates version format (e.g., "4.2.0")
-
-
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes and version history.
+
+## Acknowledgments
+
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the terminal UI
+- [Django](https://www.djangoproject.com/) community
+- All contributors who have helped shape this project
+
+## Support
+
+- 📫 Report bugs through [GitHub issues](https://github.com/yourusername/django-cli/issues)
+- 💬 Get help in the [Discussions](https://github.com/yourusername/django-cli/discussions)
+- 📖 Read the [Wiki](https://github.com/yourusername/django-cli/wiki) for detailed documentation
