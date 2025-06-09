@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -21,7 +22,10 @@ type Model struct {
 	error              error
 	done               bool
 	program            *tea.Program
-	mainForm           *huh.Form
+	projectNameForm    *huh.Form
+	djangoVersionForm  *huh.Form
+	projectConfigForm  *huh.Form
+	appNameForm        *huh.Form
 	devServerForm      *huh.Form
 	selectedOptions    []string
 	appName            string
@@ -70,6 +74,23 @@ func (m *Model) updateProgress(status string) {
 	}
 }
 
+func (m *Model) getActiveForm() *huh.Form {
+	switch m.step {
+	case stepProjectName:
+		return m.projectNameForm
+	case stepDjangoVersion:
+		return m.djangoVersionForm
+	case stepProjectConfig:
+		return m.projectConfigForm
+	case stepAppName:
+		return m.appNameForm
+	case stepDevServerPrompt:
+		return m.devServerForm
+	default:
+		return nil
+	}
+}
+
 func NewModel() *Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -109,13 +130,16 @@ func NewModel() *Model {
 	theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 	theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
 
-	m.mainForm = huh.NewForm(
+	m.projectNameForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Project Name").
 				Value(&m.projectName).
 				Validate(validateProjectName),
 		),
+	).WithTheme(theme)
+
+	m.djangoVersionForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Django Version").
@@ -124,12 +148,9 @@ func NewModel() *Model {
 				Value(&m.djangoVersion).
 				Validate(validateDjangoVersion),
 		),
-		huh.NewGroup(
-			huh.NewInput().
-				Title("App Name (Optional)").
-				Description("Enter initial Django app name (leave empty to skip)").
-				Value(&m.appName),
-		),
+	).WithTheme(theme)
+
+	m.projectConfigForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Project Configuration").
@@ -143,6 +164,15 @@ func NewModel() *Model {
 				).
 				Limit(5).
 				Value(&m.selectedOptions),
+		),
+	).WithTheme(theme)
+
+	m.appNameForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("App Name").
+				Description("Enter the name for your Django app").
+				Value(&m.appName),
 		),
 	).WithTheme(theme)
 
@@ -170,4 +200,36 @@ func (m *Model) Init() tea.Cmd {
 		}),
 		m.spinner.Tick,
 	)
+}
+
+func (m *Model) processFormData() {
+	if m.djangoVersion == "" {
+		m.djangoVersion = "latest"
+	}
+	m.createTemplates = false
+	m.createAppTemplates = false
+	m.initializeGit = false
+	m.setupTailwind = false
+	m.setupRestFramework = false
+
+	for _, opt := range m.selectedOptions {
+		switch opt {
+		case "Global Templates":
+			m.createTemplates = true
+		case "App Templates":
+			m.createAppTemplates = true
+		case "Initialize Git":
+			m.initializeGit = true
+		case "Tailwind":
+			m.setupTailwind = true
+		case "REST Framework":
+			m.setupRestFramework = true
+		}
+	}
+	m.stepMessages = append(m.stepMessages, "Project name: "+m.projectName)
+	m.stepMessages = append(m.stepMessages, "Django version: "+m.djangoVersion)
+	if m.appName != "" {
+		m.stepMessages = append(m.stepMessages, "App name: "+m.appName)
+	}
+	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Selected options: %v", m.selectedOptions))
 }

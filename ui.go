@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -127,25 +126,6 @@ func (m *Model) View() string {
 
 	activeForm := m.getActiveForm()
 
-	// Handle form completion immediately
-	if activeForm != nil && activeForm.State == huh.StateCompleted {
-		if m.step == stepProjectName {
-			m.step = stepSetup
-			m.processFormData()
-			m.totalSteps = m.calculateTotalSteps()
-			m.progressStatus = "Starting project setup..."
-			m.progress.SetPercent(0.0)
-			go m.CreateProject()
-		} else if m.step == stepDevServerPrompt {
-			if m.startDevServer {
-				go m.startDevelopmentEnvironment()
-				m.done = true
-			} else {
-				m.step = stepComplete
-			}
-		}
-	}
-
 	switch m.step {
 	case stepSetup:
 		s.WriteString(titleStyle.Render("🚧 Project Initialization 🚧") + "\n\n")
@@ -165,7 +145,6 @@ func (m *Model) View() string {
 		percentage := int(m.progress.Percent() * 100)
 		s.WriteString(pad + progressStyle.Render(fmt.Sprintf("Progress: %d%%", percentage)) + "\n")
 
-		// Show progress messages with proper padding and spacing
 		if len(m.stepMessages) > 0 {
 			s.WriteString("\n" + pad + "Recent steps:\n")
 			start := len(m.stepMessages)
@@ -182,7 +161,28 @@ func (m *Model) View() string {
 	case stepProjectName:
 		if activeForm != nil {
 			s.WriteString(titleStyle.Render("🚀 Django Project Configuration") + "\n")
-			s.WriteString(subtitleStyle.Render("Configure your Django project with all options in one place") + "\n\n")
+			s.WriteString(subtitleStyle.Render("Let's start by naming your project") + "\n\n")
+			s.WriteString(activeForm.View())
+		}
+
+	case stepDjangoVersion:
+		if activeForm != nil {
+			s.WriteString(titleStyle.Render("🐍 Django Version Selection") + "\n")
+			s.WriteString(subtitleStyle.Render("Choose your Django version") + "\n\n")
+			s.WriteString(activeForm.View())
+		}
+
+	case stepProjectConfig:
+		if activeForm != nil {
+			s.WriteString(titleStyle.Render("⚙️ Project Features") + "\n")
+			s.WriteString(subtitleStyle.Render("Configure your Django project features") + "\n\n")
+			s.WriteString(activeForm.View())
+		}
+
+	case stepAppName:
+		if activeForm != nil {
+			s.WriteString(titleStyle.Render("📱 App Configuration") + "\n")
+			s.WriteString(subtitleStyle.Render("Name your Django app") + "\n\n")
 			s.WriteString(activeForm.View())
 		}
 
@@ -212,10 +212,17 @@ func (m *Model) View() string {
 	}
 
 	quitHelp := footerStyle.Render("Press 'q' or 'Ctrl+C' to quit.")
-
 	var navHelp string
-	if activeForm != nil && m.step == stepProjectName {
-		navHelp = footerStyle.Render("Navigate: ↑/↓ or Tab/Shift+Tab  |  Select: Space/Enter  |  Submit: Enter")
+
+	if activeForm != nil {
+		switch m.step {
+		case stepProjectName, stepDjangoVersion, stepAppName:
+			navHelp = footerStyle.Render("Type your input and press Enter to continue")
+		case stepProjectConfig:
+			navHelp = footerStyle.Render("Navigate: ↑/↓  |  Select: Space  |  Submit: Enter")
+		case stepDevServerPrompt:
+			navHelp = footerStyle.Render("Select: ←/→  |  Submit: Enter")
+		}
 	}
 
 	s.WriteString("\n")

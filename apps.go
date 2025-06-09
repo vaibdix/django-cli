@@ -81,19 +81,17 @@ urlpatterns = [
 	}
 
 	projectUrlsPath := filepath.Join(projectPath, m.projectName, "urls.py")
-	rootPathForProjectUrls := ""
-	if m.createTemplates {
-		rootPathForProjectUrls = "    path('', TemplateView.as_view(template_name='index.html'), name='home'),\n"
-	}
-	appIncludePath := fmt.Sprintf("    path('%s/', include('%s.urls', namespace='%s')),\n", m.appName, m.appName, m.appName)
 	projectUrlsContent := fmt.Sprintf(`from django.contrib import admin
 from django.urls import path, include
-%s
+from django.views.generic import TemplateView
+
 urlpatterns = [
+    path('', TemplateView.as_view(template_name='index.html'), name='home'),
     path('admin/', admin.site.urls),
     path('__reload__/', include('django_browser_reload.urls')),
-%s%s]
-`, Ternary(m.createTemplates, "from django.views.generic import TemplateView", ""), appIncludePath, rootPathForProjectUrls)
+    path('%s/', include('%s.urls', namespace='%s')),
+]
+`, m.appName, m.appName, m.appName)
 	if err := os.WriteFile(projectUrlsPath, []byte(projectUrlsContent), 0644); err != nil {
 		return fmt.Errorf("failed to update project urls.py: %v", err)
 	}

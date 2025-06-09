@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -45,7 +44,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.splashCountdown--
 			if m.splashCountdown <= 0 {
 				m.step = stepProjectName
-				cmds = append(cmds, m.mainForm.Init())
+				cmds = append(cmds, m.projectNameForm.Init())
 			} else {
 				cmds = append(cmds, tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
 					return tickMsg{}
@@ -84,89 +83,93 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	if m.step == stepProjectName && m.mainForm != nil {
-		if m.mainForm.State != huh.StateCompleted {
-			formModel, formCmd := m.mainForm.Update(msg)
+	activeForm := m.getActiveForm()
+	if activeForm != nil {
+		if activeForm.State != huh.StateCompleted {
+			formModel, formCmd := activeForm.Update(msg)
 			if castedForm, ok := formModel.(*huh.Form); ok {
-				m.mainForm = castedForm
+				switch m.step {
+				case stepProjectName:
+					m.projectNameForm = castedForm
+				case stepDjangoVersion:
+					m.djangoVersionForm = castedForm
+				case stepProjectConfig:
+					m.projectConfigForm = castedForm
+				case stepAppName:
+					m.appNameForm = castedForm
+				case stepDevServerPrompt:
+					m.devServerForm = castedForm
+				}
 			}
 			cmds = append(cmds, formCmd)
 		} else {
-			m.processFormData()
-			m.totalSteps = m.calculateTotalSteps()
-			m.progressStatus = "Starting project setup..."
-			m.progress.SetPercent(0.0)
-
-			m.step = stepSetup
-
-			go m.CreateProject()
-
-			cmds = append(cmds,
-				m.spinner.Tick,
-				func() tea.Msg {
-					return projectProgressMsg{
-						percent: 0.0,
-						status:  "Initializing project setup...",
-					}
-				},
-				m.progress.SetPercent(0.0),
-				func() tea.Msg {
-					return progress.FrameMsg{}
-				},
-			)
-
+			switch m.step {
+			case stepProjectName:
+				m.step = stepDjangoVersion
+				cmds = append(cmds, m.djangoVersionForm.Init())
+			case stepDjangoVersion:
+				m.step = stepProjectConfig
+				cmds = append(cmds, m.projectConfigForm.Init())
+			case stepProjectConfig:
+				m.processFormData()
+				if m.createAppTemplates || m.setupRestFramework {
+					m.step = stepAppName
+					cmds = append(cmds, m.appNameForm.Init())
+				} else {
+					m.step = stepSetup
+					m.totalSteps = m.calculateTotalSteps()
+					m.progressStatus = "Starting project setup..."
+					m.progress.SetPercent(0.0)
+					go m.CreateProject()
+					cmds = append(cmds,
+						m.spinner.Tick,
+						func() tea.Msg {
+							return projectProgressMsg{
+								percent: 0.0,
+								status:  "Initializing project setup...",
+							}
+						},
+						m.progress.SetPercent(0.0),
+						func() tea.Msg {
+							return progress.FrameMsg{}
+						},
+					)
+				}
+			case stepAppName:
+				m.step = stepSetup
+				m.totalSteps = m.calculateTotalSteps()
+				m.progressStatus = "Starting project setup..."
+				m.progress.SetPercent(0.0)
+				go m.CreateProject()
+				cmds = append(cmds,
+					m.spinner.Tick,
+					func() tea.Msg {
+						return projectProgressMsg{
+							percent: 0.0,
+							status:  "Initializing project setup...",
+						}
+					},
+					m.progress.SetPercent(0.0),
+					func() tea.Msg {
+						return progress.FrameMsg{}
+					},
+				)
+			case stepDevServerPrompt:
+				if m.startDevServer {
+					go m.startDevelopmentEnvironment()
+					m.done = true
+					cmds = append(cmds, func() tea.Msg {
+						return tea.KeyMsg{Type: tea.KeyEnter}
+					})
+				} else {
+					m.step = stepComplete
+				}
+			}
 			return m, tea.Batch(cmds...)
 		}
 	}
 
-	if m.step == stepDevServerPrompt && m.devServerForm != nil {
-		if m.devServerForm.State != huh.StateCompleted {
-			formModel, formCmd := m.devServerForm.Update(msg)
-			if castedForm, ok := formModel.(*huh.Form); ok {
-				m.devServerForm = castedForm
-			}
-			cmds = append(cmds, formCmd)
-		} else {
-			if m.startDevServer {
-				go m.startDevelopmentEnvironment()
-				m.done = true
-				cmds = append(cmds, func() tea.Msg {
-					return tea.KeyMsg{Type: tea.KeyEnter}
-				})
-			} else {
-				m.step = stepComplete
-			}
-			return m, tea.Batch(cmds...)
-		}
-	}
 	return m, tea.Batch(cmds...)
-}
-
-func (m *Model) getActiveForm() *huh.Form {
-	switch m.step {
-	case stepProjectName:
-		return m.mainForm
-	case stepDevServerPrompt:
-		return m.devServerForm
-	}
-	return nil
-}
-
-func (m *Model) processFormData() {
-	if m.djangoVersion == "" {
-		m.djangoVersion = "latest"
-	}
-	m.createTemplates = contains(m.selectedOptions, "Global Templates")
-	m.createAppTemplates = contains(m.selectedOptions, "App Templates")
-	m.initializeGit = contains(m.selectedOptions, "Initialize Git")
-	m.setupTailwind = contains(m.selectedOptions, "Tailwind")
-	m.setupRestFramework = contains(m.selectedOptions, "REST Framework")
-	m.stepMessages = append(m.stepMessages, "Project name: "+m.projectName)
-	m.stepMessages = append(m.stepMessages, "Django version: "+m.djangoVersion)
-	if m.appName != "" {
-		m.stepMessages = append(m.stepMessages, "App name: "+m.appName)
-	}
-	m.stepMessages = append(m.stepMessages, fmt.Sprintf("Selected options: %v", m.selectedOptions))
 }
 
 func contains(slice []string, item string) bool {
