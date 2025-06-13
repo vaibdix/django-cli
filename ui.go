@@ -13,54 +13,6 @@ const (
 	maxWidth = 80
 )
 
-var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{
-			Light: "#FF6B35",
-			Dark:  "#FF8A50",
-		}).
-		MarginBottom(1)
-
-	subtitleStyle = lipgloss.NewStyle().
-			Italic(true).
-			Foreground(lipgloss.AdaptiveColor{
-			Light: "#7C3AED",
-			Dark:  "#A78BFA",
-		}).
-		MarginBottom(1)
-
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{
-			Light: "#DC2626",
-			Dark:  "#EF4444",
-		}).
-		Bold(true).
-		MarginBottom(1)
-
-	footerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{
-			Light: "#64748B",
-			Dark:  "#CBD5E1",
-		}).
-		Italic(true).
-		MarginTop(1)
-
-	contentBox = lipgloss.NewStyle().
-			Padding(1, 2).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{
-			Light: "#7C3AED",
-			Dark:  "#A855F7",
-		})
-
-	progressStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{
-			Light: "#059669",
-			Dark:  "#10B981",
-		})
-)
-
 func (m *Model) View() string {
 	viewWidth := m.width
 	if viewWidth <= 0 {
@@ -78,7 +30,7 @@ func (m *Model) View() string {
 	var s strings.Builder
 
 	if m.error != nil {
-		errMsg := errorStyle.Render(fmt.Sprintf("❌ ERROR: %s", m.error.Error()))
+		errMsg := ErrorStyle.Render(fmt.Sprintf("❌ ERROR: %s", m.error.Error()))
 		s.WriteString(errMsg + "\n\n")
 		s.WriteString("Press Enter or Q to exit.")
 		return baseStyle.Render(s.String())
@@ -86,7 +38,7 @@ func (m *Model) View() string {
 
 	if m.done {
 		if m.startDevServer {
-			s.WriteString(titleStyle.Render("🚀 Development Environment Started!") + "\n\n")
+			s.WriteString(TitleStyle.Render("🚀 Development Environment Started!") + "\n\n")
 			s.WriteString("VS Code has been opened and the development server is starting...\n\n")
 			if m.setupTailwind {
 				s.WriteString("Two terminals have been opened:\n")
@@ -99,8 +51,8 @@ func (m *Model) View() string {
 			s.WriteString("   │ ◠ ◡ ◠        happy coding 🚀 \n")
 			s.WriteString("   ╰─────╯\n")
 		} else {
-			s.WriteString(titleStyle.Render("✅ Django Project Setup Complete!") + "\n\n")
-			s.WriteString(subtitleStyle.Render("What's Next:") + "\n")
+			s.WriteString(TitleStyle.Render("✅ Django Project Setup Complete!") + "\n\n")
+			s.WriteString(SubtitleStyle.Render("What's Next:") + "\n")
 			s.WriteString(fmt.Sprintf("1. Navigate to your project directory:\n   cd %s\n\n", m.projectName))
 
 			projectAbsPath, _ := filepath.Abs(m.projectName)
@@ -108,7 +60,7 @@ func (m *Model) View() string {
 			s.WriteString(fmt.Sprintf("2. Start the development server:\n   %s manage.py runserver\n\n", pythonVenvPath))
 		}
 
-		s.WriteString("\n" + footerStyle.Render("Press Enter or Q to exit."))
+		s.WriteString("\n" + FooterStyle.Render("Press Enter or Q to exit."))
 		return baseStyle.Render(s.String())
 	}
 
@@ -117,10 +69,10 @@ func (m *Model) View() string {
 		if djangoDisplayVersion == "" || djangoDisplayVersion == "latest" {
 			djangoDisplayVersion = "latest stable"
 		}
-		s.WriteString(titleStyle.Render("🚀 Django Forge CLI 🚀") + "\n\n")
+		s.WriteString(TitleStyle.Render("Django Forge CLI 🚀") + "\n\n")
 		s.WriteString(fmt.Sprintf("Welcome! Initializing Django project creator with Django %s.\n", djangoDisplayVersion))
 		s.WriteString(fmt.Sprintf("Starting in %d seconds...\n\n", m.splashCountdown))
-		s.WriteString(subtitleStyle.Render("Crafting your Django project, one step at a time."))
+		s.WriteString(SubtitleStyle.Render("Crafting your Django project, one step at a time."))
 		return baseStyle.Render(s.String())
 	}
 
@@ -128,7 +80,7 @@ func (m *Model) View() string {
 
 	switch m.step {
 	case stepSetup:
-		s.WriteString(titleStyle.Render("🚧 Project Initialization 🚧") + "\n\n")
+		s.WriteString(TitleStyle.Render("🚧 Project Initialization 🚧") + "\n\n")
 		s.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), m.progressStatus))
 
 		m.progress.Width = contentWidth - 8
@@ -143,7 +95,7 @@ func (m *Model) View() string {
 		s.WriteString(pad + m.progress.View() + "\n\n")
 
 		percentage := int(m.progress.Percent() * 100)
-		s.WriteString(pad + progressStyle.Render(fmt.Sprintf("Progress: %d%%", percentage)) + "\n")
+		s.WriteString(pad + ProgressStyle.Render(fmt.Sprintf("Progress: %d%%", percentage)) + "\n")
 
 		if len(m.stepMessages) > 0 {
 			s.WriteString("\n" + pad + "Recent steps:\n")
@@ -156,48 +108,44 @@ func (m *Model) View() string {
 			}
 		}
 
-		return contentBox.Width(contentWidth).Render(s.String())
+		return ContentBox.Width(contentWidth).Render(s.String())
 
 	case stepProjectName:
 		if activeForm != nil {
-			s.WriteString(titleStyle.Render("🚀 Django Project Configuration") + "\n")
-			s.WriteString(subtitleStyle.Render("Let's start by naming your project") + "\n\n")
+			s.WriteString(TitleStyle.Render("🚀 Django Project Configuration") + "\n")
 			s.WriteString(activeForm.View())
 		}
 
 	case stepDjangoVersion:
 		if activeForm != nil {
-			s.WriteString(titleStyle.Render("🐍 Django Version Selection") + "\n")
-			s.WriteString(subtitleStyle.Render("Choose your Django version") + "\n\n")
+			s.WriteString(TitleStyle.Render("🐍 Django Version Selection") + "\n")
 			s.WriteString(activeForm.View())
 		}
 
 	case stepProjectConfig:
 		if activeForm != nil {
-			s.WriteString(titleStyle.Render("⚙️ Project Features") + "\n")
-			s.WriteString(subtitleStyle.Render("Configure your Django project features") + "\n\n")
+			s.WriteString(TitleStyle.Render("⚙️ Project Features") + "\n")
 			s.WriteString(activeForm.View())
 		}
 
 	case stepAppName:
 		if activeForm != nil {
-			s.WriteString(titleStyle.Render("📱 App Configuration") + "\n")
-			s.WriteString(subtitleStyle.Render("Name your Django app") + "\n\n")
+			s.WriteString(TitleStyle.Render("📱 App Configuration") + "\n")
 			s.WriteString(activeForm.View())
 		}
 
 	case stepDevServerPrompt:
 		if activeForm != nil {
-			s.WriteString(titleStyle.Render("🎉 Project Setup Complete!") + "\n\n")
+			s.WriteString(TitleStyle.Render("🎉 Project Setup Complete!") + "\n\n")
 			s.WriteString(activeForm.View())
 		}
 
 	case stepComplete:
-		s.WriteString(titleStyle.Render("✅ All Done!") + "\n\n")
+		s.WriteString(TitleStyle.Render("✅ All Done!") + "\n\n")
 		s.WriteString("   ╭─────╮\n")
 		s.WriteString("   │ ◠ ◡ ◠           happy coding\n")
 		s.WriteString("   ╰─────╯\n\n")
-		s.WriteString(subtitleStyle.Render("Manual Steps:") + "\n")
+		s.WriteString(SubtitleStyle.Render("Manual Steps:") + "\n")
 		s.WriteString(fmt.Sprintf("1. Navigate to your project: cd %s\n", m.projectName))
 		projectAbsPath, _ := filepath.Abs(m.projectName)
 		pythonVenvPath := getPythonPath(projectAbsPath)
@@ -207,23 +155,12 @@ func (m *Model) View() string {
 		} else {
 			s.WriteString(fmt.Sprintf("2. Start Django server: %s manage.py runserver\n", pythonVenvPath))
 		}
-		s.WriteString("\n" + footerStyle.Render("Press Enter or Q to exit."))
+		s.WriteString("\n" + FooterStyle.Render("Press Enter or Q to exit."))
 		return baseStyle.Render(s.String())
 	}
 
-	quitHelp := footerStyle.Render("Press 'q' or 'Ctrl+C' to quit.")
+	quitHelp := FooterStyle.Render("Press 'q' or 'Ctrl+C' to quit.")
 	var navHelp string
-
-	if activeForm != nil {
-		switch m.step {
-		case stepProjectName, stepDjangoVersion, stepAppName:
-			navHelp = footerStyle.Render("Type your input and press Enter to continue")
-		case stepProjectConfig:
-			navHelp = footerStyle.Render("Navigate: ↑/↓  |  Select: Space  |  Submit: Enter")
-		case stepDevServerPrompt:
-			navHelp = footerStyle.Render("Select: ←/→  |  Submit: Enter")
-		}
-	}
 
 	s.WriteString("\n")
 	if navHelp != "" {
@@ -231,5 +168,5 @@ func (m *Model) View() string {
 	}
 	s.WriteString(quitHelp)
 
-	return contentBox.Width(contentWidth).Render(s.String())
+	return ContentBox.Width(contentWidth).Render(s.String())
 }

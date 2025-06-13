@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type Model struct {
@@ -93,12 +92,7 @@ func (m *Model) getActiveForm() *huh.Form {
 }
 
 func NewModel() *Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("205")).
-		Bold(true).
-		MarginRight(2)
+	s := GetSpinner()
 
 	p := progress.New(
 		progress.WithDefaultGradient(),
@@ -116,20 +110,11 @@ func NewModel() *Model {
 		runServer:          false,
 		initializeGit:      true,
 		progressStatus:     "Initializing...",
-		selectedOptions:    []string{"Global Templates", "Initialize Git"},
+		selectedOptions:    []string{"Standard Django Project", "Initialize Git"},
 		completedSteps:     0,
 	}
 
-	theme := huh.ThemeBase()
-	theme.Focused.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	theme.Focused.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
-	theme.Focused.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-	theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
-	theme.Focused.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
-	theme.Blurred.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700"))
-	theme.Blurred.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Bold(true)
-	theme.Blurred.Description = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-	theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("102"))
+	theme := GetTheme()
 
 	m.projectNameForm = huh.NewForm(
 		huh.NewGroup(
@@ -144,8 +129,7 @@ func NewModel() *Model {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Django Version").
-				Description("Enter Django version (leave empty for latest stable)").
-				Placeholder("5.2.0").
+				Placeholder("5.2.1").
 				Value(&m.djangoVersion).
 				Validate(validateDjangoVersion),
 		),
@@ -154,16 +138,14 @@ func NewModel() *Model {
 	m.projectConfigForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title("Project Configuration").
-				Description("Select the features you want to include in your Django project").
+				Title("Project Configuration" + "\n").
 				Options(
-					huh.NewOption("Global Templates & Static Directories", "Global Templates").Selected(true),
-					huh.NewOption("App Templates (if creating an app)", "App Templates").Selected(true),
+					huh.NewOption("Standard Django Project (includes templates & static files)", "Standard Django Project").Selected(true),
 					huh.NewOption("Initialize Git Repository", "Initialize Git").Selected(true),
-					huh.NewOption("Vanilla + Tailwind CSS v4", "Tailwind"),
+					huh.NewOption("Tailwind CSS v4", "Tailwind"),
 					huh.NewOption("Django REST Framework API", "REST Framework"),
 				).
-				Limit(5).
+				Limit(4).
 				Value(&m.selectedOptions),
 		),
 	).WithTheme(theme)
@@ -171,8 +153,7 @@ func NewModel() *Model {
 	m.appNameForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("App Name").
-				Description("Enter the name for your Django app").
+				Title("Enter app name").
 				Value(&m.appName),
 		),
 	).WithTheme(theme)
@@ -215,9 +196,8 @@ func (m *Model) processFormData() {
 
 	for _, opt := range m.selectedOptions {
 		switch opt {
-		case "Global Templates":
+		case "Standard Django Project":
 			m.createTemplates = true
-		case "App Templates":
 			m.createAppTemplates = true
 		case "Initialize Git":
 			m.initializeGit = true
