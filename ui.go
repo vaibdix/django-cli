@@ -47,9 +47,9 @@ func (m *Model) View() string {
 			} else {
 				s.WriteString("Django development server terminal has been opened.\n\n")
 			}
-			s.WriteString("   ╭─────╮\n")
-			s.WriteString("   │ ◠ ◡ ◠        happy coding 🚀 \n")
-			s.WriteString("   ╰─────╯\n")
+			s.WriteString("\033[36m   ╭─────╮\033[0m\n")                                    // Cyan box
+			s.WriteString("\033[36m   │\033[33m ◒ ◡ ◒ \033[36m    \033[32mbrew install happiness 🍺\033[0m \n") // Yellow face, green text
+			s.WriteString("\033[36m   ╰─────╯\033[0m\n") 
 		} else {
 			s.WriteString(TitleStyle.Render("✅ Django Project Setup Complete!") + "\n\n")
 			s.WriteString(SubtitleStyle.Render("What's Next:") + "\n")
@@ -142,9 +142,12 @@ func (m *Model) View() string {
 
 	case stepComplete:
 		s.WriteString(TitleStyle.Render("✅ All Done!") + "\n\n")
-		s.WriteString("   ╭─────╮\n")
-		s.WriteString("   │ ◠ ◡ ◠           happy coding\n")
-		s.WriteString("   ╰─────╯\n\n")
+		
+		s.WriteString("\033[38;5;183m" + "   ╭─────╮" + "\033[0m" + "\n")
+		s.WriteString("\033[38;5;183m" + "   │" + "\033[38;5;151m" + " ◒ ◡ ◒ " + "\033[38;5;183m" + "    " + "\033[38;5;216m" + "Time to code like a wizard 🚀" + " \n")
+		s.WriteString("\033[38;5;183m" + "   ╰─────╯" + "\033[0m" + "\n")
+		s.WriteString("\n\n")
+	
 		s.WriteString(SubtitleStyle.Render("Manual Steps:") + "\n")
 		s.WriteString(fmt.Sprintf("1. Navigate to your project: cd %s\n", m.projectName))
 		projectAbsPath, _ := filepath.Abs(m.projectName)
