@@ -11,14 +11,13 @@ import (
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	// Handle spinner updates
 	var spinnerCmd tea.Cmd
 	m.spinner, spinnerCmd = m.spinner.Update(msg)
 	cmds = append(cmds, spinnerCmd)
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if keyMsg.Type == tea.KeyCtrlC || keyMsg.String() == "q" {
-			if !m.done && m.error == nil {
+			if !m.done && m.error == nil { 
 				return m, tea.Quit
 			}
 		}
@@ -35,7 +34,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.progress.Width = m.width - padding*2 - 4
+		m.progress.Width = m.width - padding*2 - 4 
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
 		}
@@ -58,6 +57,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case blinkMsg:
+		if time.Since(m.blinkTimer) > time.Second/2 {
+			m.eyesOpen = !m.eyesOpen 
+			m.blinkTimer = time.Now() 
+		}
+		cmds = append(cmds, blinkCmd())
+		return m, tea.Batch(cmds...)
+
 	case projectProgressMsg:
 		if m.step == stepSetup {
 			cmd := m.progress.SetPercent(msg.percent)
@@ -65,7 +72,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stepMessages = append(m.stepMessages, "PROGRESS: "+msg.status)
 			cmds = append(cmds, cmd)
 		}
-		return m, tea.Batch(append(cmds, m.spinner.Tick)...)
+		return m, tea.Batch(cmds...)
 
 	case projectCreationDoneMsg:
 		if m.step == stepSetup {
@@ -85,62 +92,42 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
-		return m, cmd
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
 	}
 
 	activeForm := m.getActiveForm()
-	if activeForm != nil {
-		if activeForm.State != huh.StateCompleted {
-			formModel, formCmd := activeForm.Update(msg)
-			if castedForm, ok := formModel.(*huh.Form); ok {
-				switch m.step {
-				case stepProjectName:
-					m.projectNameForm = castedForm
-				case stepDjangoVersion:
-					m.djangoVersionForm = castedForm
-				case stepProjectConfig:
-					m.projectConfigForm = castedForm
-				case stepAppName:
-					m.appNameForm = castedForm
-				case stepDevServerPrompt:
-					m.devServerForm = castedForm
-				}
-			}
-			cmds = append(cmds, formCmd)
-		} else {
+	if activeForm != nil && activeForm.State != huh.StateCompleted {
+		formModel, formCmd := activeForm.Update(msg)
+		if castedForm, ok := formModel.(*huh.Form); ok {
 			switch m.step {
 			case stepProjectName:
-				m.step = stepDjangoVersion
-				cmds = append(cmds, m.djangoVersionForm.Init())
+				m.projectNameForm = castedForm
 			case stepDjangoVersion:
-				m.step = stepProjectConfig
-				cmds = append(cmds, m.projectConfigForm.Init())
+				m.djangoVersionForm = castedForm
 			case stepProjectConfig:
-				m.processFormData()
-				if m.createAppTemplates || m.setupRestFramework {
-					m.step = stepAppName
-					cmds = append(cmds, m.appNameForm.Init())
-				} else {
-					m.step = stepSetup
-					m.totalSteps = m.calculateTotalSteps()
-					m.progressStatus = "Starting project setup..."
-					m.progress.SetPercent(0.0)
-					go m.CreateProject()
-					cmds = append(cmds,
-						m.spinner.Tick,
-						func() tea.Msg {
-							return projectProgressMsg{
-								percent: 0.0,
-								status:  "Initializing project setup...",
-							}
-						},
-						m.progress.SetPercent(0.0),
-						func() tea.Msg {
-							return progress.FrameMsg{}
-						},
-					)
-				}
+				m.projectConfigForm = castedForm
 			case stepAppName:
+				m.appNameForm = castedForm
+			case stepDevServerPrompt:
+				m.devServerForm = castedForm
+			}
+		}
+		cmds = append(cmds, formCmd) 
+	} else if activeForm != nil && activeForm.State == huh.StateCompleted {
+		switch m.step {
+		case stepProjectName:
+			m.step = stepDjangoVersion
+			cmds = append(cmds, m.djangoVersionForm.Init())
+		case stepDjangoVersion:
+			m.step = stepProjectConfig
+			cmds = append(cmds, m.projectConfigForm.Init())
+		case stepProjectConfig:
+			m.processFormData()
+			if m.createAppTemplates || m.setupRestFramework {
+				m.step = stepAppName
+				cmds = append(cmds, m.appNameForm.Init())
+			} else {
 				m.step = stepSetup
 				m.totalSteps = m.calculateTotalSteps()
 				m.progressStatus = "Starting project setup..."
@@ -159,21 +146,39 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return progress.FrameMsg{}
 					},
 				)
-			case stepDevServerPrompt:
-				if m.startDevServer {
-					go m.startDevelopmentEnvironment()
-					m.done = true
-					cmds = append(cmds, func() tea.Msg {
-						return tea.KeyMsg{Type: tea.KeyEnter}
-					})
-				} else {
-					m.step = stepComplete
-				}
 			}
-			return m, tea.Batch(cmds...)
+		case stepAppName:
+			m.step = stepSetup
+			m.totalSteps = m.calculateTotalSteps()
+			m.progressStatus = "Starting project setup..."
+			m.progress.SetPercent(0.0)
+			go m.CreateProject()
+			cmds = append(cmds,
+				m.spinner.Tick,
+				func() tea.Msg {
+					return projectProgressMsg{
+						percent: 0.0,
+						status:  "Initializing project setup...",
+					}
+				},
+				m.progress.SetPercent(0.0),
+				func() tea.Msg {
+					return progress.FrameMsg{}
+				},
+			)
+		case stepDevServerPrompt:
+			if m.startDevServer {
+				go m.startDevelopmentEnvironment()
+				m.done = true
+				cmds = append(cmds, func() tea.Msg {
+					return tea.KeyMsg{Type: tea.KeyEnter}
+				})
+			} else {
+				m.step = stepComplete
+			}
 		}
+		return m, tea.Batch(cmds...)
 	}
-
 	return m, tea.Batch(cmds...)
 }
 

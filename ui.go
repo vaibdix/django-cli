@@ -35,6 +35,12 @@ func (m *Model) View() string {
 		s.WriteString("Press Enter or Q to exit.")
 		return baseStyle.Render(s.String())
 	}
+	
+	eyeChar := "◒"
+	if !m.eyesOpen {
+		eyeChar = "-"
+	}
+	blinkingFace := fmt.Sprintf("%s ◡ %s", eyeChar, eyeChar)
 
 	if m.done {
 		if m.startDevServer {
@@ -47,9 +53,9 @@ func (m *Model) View() string {
 			} else {
 				s.WriteString("Django development server terminal has been opened.\n\n")
 			}
-			s.WriteString("\033[36m   ╭─────╮\033[0m\n")                                    // Cyan box
-			s.WriteString("\033[36m   │\033[33m ◒ ◡ ◒ \033[36m    \033[32mbrew install happiness 🍺\033[0m \n") // Yellow face, green text
-			s.WriteString("\033[36m   ╰─────╯\033[0m\n") 
+			s.WriteString("\033[36m   ╭─────╮\033[0m\n")
+			s.WriteString(fmt.Sprintf("\033[36m   │\033[33m %s \033[36m    \033[32mbrew install happiness 🍺\033[0m \n", blinkingFace))
+			s.WriteString("\033[36m   ╰─────╯\033[0m\n")
 		} else {
 			s.WriteString(TitleStyle.Render("✅ Django Project Setup Complete!") + "\n\n")
 			s.WriteString(SubtitleStyle.Render("What's Next:") + "\n")
@@ -92,6 +98,7 @@ func (m *Model) View() string {
 		}
 
 		pad := strings.Repeat(" ", padding)
+
 		s.WriteString(pad + m.progress.View() + "\n\n")
 
 		percentage := int(m.progress.Percent() * 100)
@@ -144,10 +151,10 @@ func (m *Model) View() string {
 		s.WriteString(TitleStyle.Render("✅ All Done!") + "\n\n")
 		
 		s.WriteString("\033[38;5;183m" + "   ╭─────╮" + "\033[0m" + "\n")
-		s.WriteString("\033[38;5;183m" + "   │" + "\033[38;5;151m" + " ◒ ◡ ◒ " + "\033[38;5;183m" + "    " + "\033[38;5;216m" + "Time to code like a wizard 🚀" + " \n")
+		s.WriteString(fmt.Sprintf("\033[38;5;183m" + "   │" + "\033[38;5;151m" + " %s " + "\033[38;5;183m" + "    " + "\033[38;5;216m" + "Time to code like a wizard 🚀" + " \n", blinkingFace))
 		s.WriteString("\033[38;5;183m" + "   ╰─────╯" + "\033[0m" + "\n")
 		s.WriteString("\n\n")
-	
+
 		s.WriteString(SubtitleStyle.Render("Manual Steps:") + "\n")
 		s.WriteString(fmt.Sprintf("1. Navigate to your project: cd %s\n", m.projectName))
 		projectAbsPath, _ := filepath.Abs(m.projectName)

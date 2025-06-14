@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 )
+type blinkMsg time.Time
 
 type Model struct {
 	step               step
@@ -41,6 +42,8 @@ type Model struct {
 	width              int
 	totalSteps         int
 	completedSteps     int
+	blinkTimer         time.Time
+	eyesOpen           bool
 }
 
 func (m *Model) calculateTotalSteps() int {
@@ -91,26 +94,15 @@ func (m *Model) getActiveForm() *huh.Form {
 	}
 }
 
-// func NewModel() *Model {
-// 	s := GetSpinner()
-
-// 	p := progress.New(
-// 		progress.WithGradient("#7a6483", "#baa4ed"),
-// 		// progress.WithDefaultGradient(),
-// 		progress.WithWidth(50),
-// 	)
-// 	p.Empty = '░'
 func NewModel() *Model {
 	s := GetSpinner()
 	p := progress.New(
 		progress.WithGradient("#baa4ed", "#ffbc9e"),
-		// progress.WithDefaultGradient(),
 		progress.WithWidth(50),
-
-		progress.WithFillCharacters('●', '○'), // moved this line up and added comma
+		progress.WithFillCharacters('●', '○'),
 	)
 	p.ShowPercentage = true
-	// p.Empty = '░'
+
 	m := &Model{
 		spinner:            s,
 		progress:           p,
@@ -124,6 +116,8 @@ func NewModel() *Model {
 		progressStatus:     "Initializing...",
 		selectedOptions:    []string{"Standard Django Project", "Initialize Git"},
 		completedSteps:     0,
+		blinkTimer:         time.Now(), 
+		eyesOpen:           true, 
 	}
 
 	theme := GetTheme()
@@ -187,12 +181,20 @@ func (m *Model) SetProgram(p *tea.Program) {
 	m.program = p
 }
 
+
+func blinkCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
+		return blinkMsg(t)
+	})
+}
+
 func (m *Model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.Tick(1*time.Second, func(_ time.Time) tea.Msg {
 			return tickMsg{}
 		}),
 		m.spinner.Tick,
+		blinkCmd(),
 	)
 }
 
