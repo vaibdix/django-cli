@@ -91,14 +91,26 @@ func (m *Model) getActiveForm() *huh.Form {
 	}
 }
 
+// func NewModel() *Model {
+// 	s := GetSpinner()
+
+// 	p := progress.New(
+// 		progress.WithGradient("#7a6483", "#baa4ed"),
+// 		// progress.WithDefaultGradient(),
+// 		progress.WithWidth(50),
+// 	)
+// 	p.Empty = '░'
 func NewModel() *Model {
 	s := GetSpinner()
-
 	p := progress.New(
-		progress.WithDefaultGradient(),
+		progress.WithGradient("#baa4ed", "#ffbc9e"),
+		// progress.WithDefaultGradient(),
 		progress.WithWidth(50),
-	)
 
+		progress.WithFillCharacters('●', '○'), // moved this line up and added comma
+	)
+	p.ShowPercentage = true
+	// p.Empty = '░'
 	m := &Model{
 		spinner:            s,
 		progress:           p,
