@@ -13,8 +13,14 @@ func (m *Model) createDjangoApp(projectPath, settingsPath string) error {
 		return nil
 	}
 
-	pythonVenvPath := getPythonPath(projectPath)
-	cmd := exec.Command(pythonVenvPath, "manage.py", "startapp", m.appName)
+	var cmd *exec.Cmd
+	if isUvAvailable() {
+		cmd = exec.Command("uv", "run", "python", "manage.py", "startapp", m.appName)
+	} else {
+		pythonVenvPath := getPythonPath(projectPath)
+		cmd = exec.Command(pythonVenvPath, "manage.py", "startapp", m.appName)
+	}
+	
 	cmd.Dir = projectPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to create app '%s': %v\nOutput: %s", m.appName, err, string(output))
@@ -96,6 +102,5 @@ urlpatterns = [
 		return fmt.Errorf("failed to update project urls.py: %v", err)
 	}
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Configured templates, views, and URLs for app: %s", m.appName))
-
 	return nil
 }
