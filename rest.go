@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"runtime"
 )
 
 func (m *Model) setupDjangoRestFramework(projectPath string) error {
@@ -15,15 +16,33 @@ func (m *Model) setupDjangoRestFramework(projectPath string) error {
 
 	m.updateProgress("Setting up Django REST Framework...")
 
-	// Install Django REST Framework
-	pythonCmd := getPythonPath(projectPath)
-	cmd := exec.Command(pythonCmd, "-m", "pip", "install", "djangorestframework")
-	cmd.Dir = projectPath
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to install Django REST Framework: %v\nOutput: %s", err, string(output)))
-		return err
+	packageManager, baseArgs := getPackageManager(projectPath)
+	
+	args := append(baseArgs, "djangorestframework")
+	if isUvAvailable() {
+		args = append(args, "--quiet")
 	}
+	cmd := exec.Command(packageManager, args...)
+	cmd.Dir = projectPath
+	
+	var err error
+	if runtime.GOOS == "windows" {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+	} else {
+		var output []byte
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			m.stepMessages = append(m.stepMessages, fmt.Sprintf("⚠️  Warning: Failed to install Django REST Framework: %v\nOutput: %s", err, string(output)))
+			return err
+		}
+	}
+	
+	if err != nil {
+		return fmt.Errorf("failed to install Django REST Framework: %v", err)
+	}
+	
 	m.stepMessages = append(m.stepMessages, "✅ Django REST Framework installed.")
 
 	// Update settings.py

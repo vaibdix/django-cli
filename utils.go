@@ -25,6 +25,16 @@ func isCommandAvailable(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
+func isUvAvailable() bool {
+	return isCommandAvailable("uv")
+}
+func getPackageManager(projectPath string) (string, []string) {
+	if isUvAvailable() {
+		return "uv", []string{"pip", "install"}
+	}
+	return getPipPath(projectPath), []string{"install"}
+}
+
 func addToListInSettingsPy(settingsContent, listName, itemToAdd string) (string, error) {
 	quotedItem := fmt.Sprintf("'%s'", strings.Trim(itemToAdd, "'\""))
 
