@@ -17,7 +17,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if keyMsg.Type == tea.KeyCtrlC || keyMsg.String() == "q" {
-			if !m.done && m.error == nil { 
+			if !m.done && m.error == nil {
 				return m, tea.Quit
 			}
 		}
@@ -34,7 +34,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.progress.Width = m.width - padding*2 - 4 
+		m.progress.Width = m.width - padding*2 - 4
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
 		}
@@ -59,8 +59,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case blinkMsg:
 		if time.Since(m.blinkTimer) > time.Second/2 {
-			m.eyesOpen = !m.eyesOpen 
-			m.blinkTimer = time.Now() 
+			m.eyesOpen = !m.eyesOpen
+			m.blinkTimer = time.Now()
 		}
 		cmds = append(cmds, blinkCmd())
 		return m, tea.Batch(cmds...)
@@ -113,7 +113,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.devServerForm = castedForm
 			}
 		}
-		cmds = append(cmds, formCmd) 
+		cmds = append(cmds, formCmd)
 	} else if activeForm != nil && activeForm.State == huh.StateCompleted {
 		switch m.step {
 		case stepProjectName:

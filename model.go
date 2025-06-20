@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 )
+
 type blinkMsg time.Time
 
 type Model struct {
@@ -116,8 +117,8 @@ func NewModel() *Model {
 		progressStatus:     "Initializing...",
 		selectedOptions:    []string{"Standard Django Project", "Initialize Git"},
 		completedSteps:     0,
-		blinkTimer:         time.Now(), 
-		eyesOpen:           true, 
+		blinkTimer:         time.Now(),
+		eyesOpen:           true,
 	}
 
 	theme := GetTheme()
@@ -144,7 +145,7 @@ func NewModel() *Model {
 	m.projectConfigForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title("Project Configuration" + "\n").
+				Title("Project Configuration"+"\n").
 				Options(
 					huh.NewOption("Standard Django Project (includes templates & static files)", "Standard Django Project").Selected(true),
 					huh.NewOption("Initialize Git Repository", "Initialize Git").Selected(true),
@@ -180,7 +181,6 @@ func NewModel() *Model {
 func (m *Model) SetProgram(p *tea.Program) {
 	m.program = p
 }
-
 
 func blinkCmd() tea.Cmd {
 	return tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {

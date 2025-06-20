@@ -35,7 +35,7 @@ func (m *Model) View() string {
 		s.WriteString("Press Enter or Q to exit.")
 		return baseStyle.Render(s.String())
 	}
-	
+
 	eyeChar := "◒"
 	if !m.eyesOpen {
 		eyeChar = "-"
@@ -149,9 +149,9 @@ func (m *Model) View() string {
 
 	case stepComplete:
 		s.WriteString(TitleStyle.Render("✅ All Done!") + "\n\n")
-		
+
 		s.WriteString("\033[38;5;183m" + "   ╭─────╮" + "\033[0m" + "\n")
-		s.WriteString(fmt.Sprintf("\033[38;5;183m" + "   │" + "\033[38;5;151m" + " %s " + "\033[38;5;183m" + "    " + "\033[38;5;216m" + "Time to code like a wizard 🚀" + " \n", blinkingFace))
+		s.WriteString(fmt.Sprintf("\033[38;5;183m"+"   │"+"\033[38;5;151m"+" %s "+"\033[38;5;183m"+"    "+"\033[38;5;216m"+"Time to code like a wizard 🚀"+" \n", blinkingFace))
 		s.WriteString("\033[38;5;183m" + "   ╰─────╯" + "\033[0m" + "\n")
 		s.WriteString("\n\n")
 

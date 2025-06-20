@@ -5,8 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"runtime"
+	"strings"
 )
 
 func (m *Model) setupDjangoRestFramework(projectPath string) error {
@@ -17,14 +17,14 @@ func (m *Model) setupDjangoRestFramework(projectPath string) error {
 	m.updateProgress("Setting up Django REST Framework...")
 
 	packageManager, baseArgs := getPackageManager(projectPath)
-	
+
 	args := append(baseArgs, "djangorestframework")
 	if isUvAvailable() {
 		args = append(args, "--quiet")
 	}
 	cmd := exec.Command(packageManager, args...)
 	cmd.Dir = projectPath
-	
+
 	var err error
 	if runtime.GOOS == "windows" {
 		cmd.Stdout = os.Stdout
@@ -38,11 +38,11 @@ func (m *Model) setupDjangoRestFramework(projectPath string) error {
 			return err
 		}
 	}
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to install Django REST Framework: %v", err)
 	}
-	
+
 	m.stepMessages = append(m.stepMessages, "✅ Django REST Framework installed.")
 
 	// Update settings.py

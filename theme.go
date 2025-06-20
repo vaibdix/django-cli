@@ -65,13 +65,13 @@ func GetTheme() *huh.Theme {
 	theme.Focused.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSlate))
 	theme.Focused.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPink))
 	theme.Focused.TextInput.Text = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorLilac))
-	
+
 	// Selected options styling
 	theme.Focused.SelectedOption = lipgloss.NewStyle().
 		Background(lipgloss.Color(ColorPurple)).
 		Foreground(lipgloss.Color(ColorLilac)).
 		Bold(true)
-	
+
 	theme.Focused.UnselectedOption = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(ColorLavender))
 
@@ -82,10 +82,10 @@ func GetTheme() *huh.Theme {
 	theme.Blurred.TextInput.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSlate))
 	theme.Blurred.TextInput.Cursor = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSlate))
 	theme.Blurred.TextInput.Text = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSlate))
-	
+
 	theme.Blurred.SelectedOption = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(ColorSlate))
-	
+
 	theme.Blurred.UnselectedOption = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(ColorSlate))
 

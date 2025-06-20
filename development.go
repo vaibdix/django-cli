@@ -43,7 +43,7 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 	// Check for virtual environment
 	venvDirs := []string{"venv", "env", ".venv"}
 	venvFound := false
-	
+
 	for _, dir := range venvDirs {
 		if _, err := os.Stat(filepath.Join(projectPath, dir)); err == nil {
 			venvFound = true
@@ -90,9 +90,9 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 		"type":    "shell",
 		"command": activateCmd + pythonCmd + " manage.py runserver",
 		"presentation": map[string]interface{}{
-			"reveal":          "always",
-			"panel":           "new",
-			"group":           "development",
+			"reveal":           "always",
+			"panel":            "new",
+			"group":            "development",
 			"showReuseMessage": false,
 		},
 		"runOptions": map[string]interface{}{
@@ -123,9 +123,9 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 			"type":    "shell",
 			"command": "npm run watch:css",
 			"presentation": map[string]interface{}{
-				"reveal":          "always",
-				"panel":           "new",
-				"group":           "development",
+				"reveal":           "always",
+				"panel":            "new",
+				"group":            "development",
 				"showReuseMessage": false,
 			},
 			"runOptions": map[string]interface{}{
@@ -138,12 +138,11 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 		tasks["tasks"] = append(tasks["tasks"].([]map[string]interface{}), tailwindTask)
 	}
 
-
 	if setupTailwind {
 		combinedTask := map[string]interface{}{
-			"label": "Start Development Environment",
+			"label":        "Start Development Environment",
 			"dependsOrder": "parallel",
-			"dependsOn": []string{djangoTaskLabel, "Tailwind: Watch CSS"},
+			"dependsOn":    []string{djangoTaskLabel, "Tailwind: Watch CSS"},
 			"group": map[string]interface{}{
 				"kind":      "build",
 				"isDefault": false,
@@ -159,11 +158,11 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 
 	// Create a welcome file with instructions including performance tips
 	welcomeContent := "# Welcome to Your Django Project!\n\n"
-	
+
 	if isUvAvailable() {
 		welcomeContent += "🚀 **Performance Optimized**: This project uses `uv` for faster package management and execution.\n\n"
 	}
-	
+
 	welcomeContent += "Two terminal windows should automatically open with:\n\n"
 
 	if setupTailwind {
@@ -182,7 +181,7 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 		welcomeContent += "- `Tailwind: Watch CSS`: Watch and compile Tailwind CSS\n"
 		welcomeContent += "- `Start Development Environment`: Run both Django and Tailwind concurrently\n"
 	}
-	
+
 	if !isUvAvailable() {
 		welcomeContent += "\n## Performance Tip:\n"
 		welcomeContent += "💡 Install `uv` for faster package management and development server startup:\n"
@@ -198,16 +197,16 @@ func createVSCodeTasks(projectPath string, setupTailwind bool) {
 func (m *Model) setupServerInstructions(projectPath string) {
 	if m.runServer {
 		var startCommand string
-		
+
 		if isUvAvailable() {
 			startCommand = "cd " + m.projectName + " && uv run python manage.py runserver"
 		} else {
 			pythonVenvPath := getPythonPath(projectPath)
 			startCommand = "cd " + m.projectName + " && " + pythonVenvPath + " manage.py runserver"
 		}
-		
+
 		m.stepMessages = append(m.stepMessages, "✨ To start the server: "+startCommand)
-		
+
 		if m.setupTailwind {
 			m.stepMessages = append(m.stepMessages, "✨ To watch Tailwind CSS: cd "+m.projectName+" && npm run watch:css")
 		}

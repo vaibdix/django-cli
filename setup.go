@@ -53,7 +53,7 @@ func (m *Model) createVirtualEnvironment(projectPath string) error {
 
 func (m *Model) installDjango(projectPath string) error {
 	packageManager, baseArgs := getPackageManager(projectPath)
-	
+
 	if isUvAvailable() {
 		m.updateProgress("Installing Django with uv (faster)...")
 	} else {
@@ -61,7 +61,7 @@ func (m *Model) installDjango(projectPath string) error {
 	}
 
 	args := append(baseArgs, "django", "django-browser-reload")
-	
+
 	if isUvAvailable() {
 		args = append(args, "--quiet")
 	} else {
@@ -88,7 +88,7 @@ func (m *Model) installDjango(projectPath string) error {
 	m.stepMessages = append(m.stepMessages, "✅ Django installed.")
 	m.stepMessages = append(m.stepMessages, "✅ django-browser-reload installed.")
 	m.updateProgress("Installing development dependencies...")
-	
+
 	return nil
 }
 
@@ -99,7 +99,7 @@ func (m *Model) createDjangoProject(projectPath string) error {
 		cmd := exec.Command(pythonVenvPath, "run", "python", "-m", "django", "startproject", m.projectName, ".")
 		cmd.Dir = projectPath
 		m.updateProgress("Creating Django project...")
-		
+
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("failed to create Django project: %v\nOutput: %s", err, string(output))
 		}
@@ -108,7 +108,7 @@ func (m *Model) createDjangoProject(projectPath string) error {
 		cmd := exec.Command(pythonVenvPath, "-m", "django", "startproject", m.projectName, ".")
 		cmd.Dir = projectPath
 		m.updateProgress("Creating Django project...")
-		
+
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("failed to create Django project: %v\nOutput: %s", err, string(output))
 		}
@@ -120,7 +120,7 @@ func (m *Model) createDjangoProject(projectPath string) error {
 
 func (m *Model) configureDjangoSettings(settingsPath string) error {
 	m.updateProgress("Configuring Django settings...")
-	
+
 	settingsContent, err := os.ReadFile(settingsPath)
 	if err != nil {
 		return fmt.Errorf("failed to read settings.py: %v", err)
@@ -148,7 +148,7 @@ func (m *Model) configureDjangoSettings(settingsPath string) error {
 }
 func (m *Model) showPerformanceTip() {
 	if !isUvAvailable() && runtime.GOOS == "windows" {
-		m.stepMessages = append(m.stepMessages, 
+		m.stepMessages = append(m.stepMessages,
 			"💡 Tip: Install 'uv' for faster package management: pip install uv")
 	}
 }

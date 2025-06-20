@@ -20,7 +20,7 @@ func (m *Model) createDjangoApp(projectPath, settingsPath string) error {
 		pythonVenvPath := getPythonPath(projectPath)
 		cmd = exec.Command(pythonVenvPath, "manage.py", "startapp", m.appName)
 	}
-	
+
 	cmd.Dir = projectPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to create app '%s': %v\nOutput: %s", m.appName, err, string(output))

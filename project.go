@@ -98,7 +98,6 @@ func (m *Model) CreateProject() {
 	}
 	var templateWg sync.WaitGroup
 
-
 	if m.createTemplates {
 		templateWg.Add(1)
 		go func() {
