@@ -25,60 +25,102 @@ func (m *Model) createVirtualEnvironment(projectPath string) error {
 
 	if pythonCmd == "" {
 		if runtime.GOOS == "windows" {
-			return fmt.Errorf("Python not found. Please:\n" +
+			return fmt.Errorf("python not found. Please:\n" +
 				"1. Download Python from https://www.python.org/downloads/\n" +
 				"2. During installation, CHECK 'Add Python to PATH'\n" +
 				"3. Restart your terminal/command prompt\n" +
 				"4. Try running this command again")
 		}
-		return fmt.Errorf("Python not found. Please install Python 3.x and ensure it's in your PATH")
+		return fmt.Errorf("python not found. Please install Python 3.x and ensure it's in your PATH")
 	}
 
-	cmd := exec.Command(pythonCmd, "-m", "venv", ".venv")
+	var cmd *exec.Cmd
+	if isUvAvailable() {
+		m.updateProgress("Creating virtual environment with uv...")
+		cmd = exec.Command("uv", "venv", ".venv")
+	} else {
+		m.updateProgress("Creating virtual environment...")
+		cmd = exec.Command(pythonCmd, "-m", "venv", ".venv")
+	}
+
 	cmd.Dir = projectPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to create virtual environment: %v\nOutput: %s", err, string(output))
 	}
 	m.stepMessages = append(m.stepMessages, "✅ Virtual environment created.")
-	m.updateProgress("Creating virtual environment...")
 	return nil
 }
 
 func (m *Model) installDjango(projectPath string) error {
-	pipPath := getPipPath(projectPath)
-
-	cmd := exec.Command(pipPath, "install", "django")
-	cmd.Dir = projectPath
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to install Django: %v\nOutput: %s", err, string(output))
+	packageManager, baseArgs := getPackageManager(projectPath)
+	
+	if isUvAvailable() {
+		m.updateProgress("Installing Django with uv (faster)...")
+	} else {
+		m.updateProgress("Installing Django...")
 	}
+
+	args := append(baseArgs, "django", "django-browser-reload")
+	
+	if isUvAvailable() {
+		args = append(args, "--quiet")
+	} else {
+		if runtime.GOOS == "windows" {
+			args = append(args, "--progress-bar", "pretty")
+		}
+	}
+
+	cmd := exec.Command(packageManager, args...)
+	cmd.Dir = projectPath
+
+	if runtime.GOOS == "windows" {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to install Django packages: %v", err)
+		}
+	} else {
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to install Django packages: %v\nOutput: %s", err, string(output))
+		}
+	}
+
 	m.stepMessages = append(m.stepMessages, "✅ Django installed.")
-	m.updateProgress("Installing Django...")
-
-	cmd = exec.Command(pipPath, "install", "django-browser-reload")
-	cmd.Dir = projectPath
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to install django-browser-reload: %v\nOutput: %s", err, string(output))
-	}
 	m.stepMessages = append(m.stepMessages, "✅ django-browser-reload installed.")
 	m.updateProgress("Installing development dependencies...")
-
+	
 	return nil
 }
 
 func (m *Model) createDjangoProject(projectPath string) error {
-	pythonVenvPath := getPythonPath(projectPath)
-	cmd := exec.Command(pythonVenvPath, "-m", "django", "startproject", m.projectName, ".")
-	cmd.Dir = projectPath
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to create Django project: %v\nOutput: %s", err, string(output))
+	var pythonVenvPath string
+	if isUvAvailable() {
+		pythonVenvPath = "uv"
+		cmd := exec.Command(pythonVenvPath, "run", "python", "-m", "django", "startproject", m.projectName, ".")
+		cmd.Dir = projectPath
+		m.updateProgress("Creating Django project...")
+		
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to create Django project: %v\nOutput: %s", err, string(output))
+		}
+	} else {
+		pythonVenvPath = getPythonPath(projectPath)
+		cmd := exec.Command(pythonVenvPath, "-m", "django", "startproject", m.projectName, ".")
+		cmd.Dir = projectPath
+		m.updateProgress("Creating Django project...")
+		
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to create Django project: %v\nOutput: %s", err, string(output))
+		}
 	}
+
 	m.stepMessages = append(m.stepMessages, fmt.Sprintf("✅ Django project '%s' created.", m.projectName))
-	m.updateProgress("Creating Django project...")
 	return nil
 }
 
 func (m *Model) configureDjangoSettings(settingsPath string) error {
+	m.updateProgress("Configuring Django settings...")
+	
 	settingsContent, err := os.ReadFile(settingsPath)
 	if err != nil {
 		return fmt.Errorf("failed to read settings.py: %v", err)
@@ -102,6 +144,11 @@ func (m *Model) configureDjangoSettings(settingsPath string) error {
 		return fmt.Errorf("failed to write updated settings.py: %v", err)
 	}
 	m.stepMessages = append(m.stepMessages, "✅ Django settings configured.")
-	m.updateProgress("Configuring Django settings...")
 	return nil
+}
+func (m *Model) showPerformanceTip() {
+	if !isUvAvailable() && runtime.GOOS == "windows" {
+		m.stepMessages = append(m.stepMessages, 
+			"💡 Tip: Install 'uv' for faster package management: pip install uv")
+	}
 }
